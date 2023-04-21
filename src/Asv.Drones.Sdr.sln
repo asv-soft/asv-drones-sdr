@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr", "Asv.Drones.Sdr\Asv.Drones.Sdr.csproj", "{FBF94233-0993-4CDB-80BA-674F982DDEEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Mavlink", "..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj", "{F70D5527-E973-4C22-B0E5-71C8E55FB120}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
