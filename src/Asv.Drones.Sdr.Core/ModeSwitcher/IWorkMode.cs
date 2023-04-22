@@ -1,8 +1,7 @@
 using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
-using Asv.Mavlink.V2.Common;
 
-namespace Asv.Drones.Sdr;
+namespace Asv.Drones.Sdr.Core;
 
 
 
@@ -10,6 +9,6 @@ public interface IWorkMode:IDisposable
 {
     AsvSdrCustomMode Mode { get; }
     Task Init(ulong frequencyHz, CancellationToken cancel);
-    void Fill(uint dataIndex, IPayload payload);
+    void Fill(RecordId writerRecordId, uint dataIndex, IPayload payload);
    
 }

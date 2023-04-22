@@ -4,6 +4,8 @@ using System.ComponentModel.Composition.Primitives;
 using System.Reflection;
 using Asv.Cfg;
 using Asv.Common;
+using Asv.Drones.Sdr.Core;
+using Asv.Drones.Sdr.Virtual;
 using Asv.Mavlink;
 using NLog;
 
@@ -11,37 +13,36 @@ namespace Asv.Drones.Sdr;
 
 internal class SdrService : DisposableOnceWithCancel
 {
-    private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
-    private readonly IConfiguration _config;
-    private readonly CompositionContainer _container;
-    private readonly IModule[] _modules;
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
 
     public SdrService(IConfiguration config)
     {
-        var a = AppDomain.CurrentDomain.GetAssemblies().ToArray();
-        _config = config ?? throw new ArgumentNullException(nameof(config));
-        _container = new CompositionContainer(new AggregateCatalog(
-                AppDomain.CurrentDomain.GetAssemblies().Distinct().Select(_ => new AssemblyCatalog(_)).OfType<ComposablePartCatalog>()))
+        var config1 = config ?? throw new ArgumentNullException(nameof(config));
+        var container = new CompositionContainer(new AggregateCatalog(
+                RegisterAssembly.Distinct().Select(_ => new AssemblyCatalog(_)).OfType<ComposablePartCatalog>()))
             .DisposeItWith(Disposable);
         var batch = new CompositionBatch();
-        batch.AddExportedValue<IConfiguration>(_config);
+        batch.AddExportedValue<IConfiguration>(config1);
         batch.AddExportedValue<IPacketSequenceCalculator>(new PacketSequenceCalculator());
-        batch.AddExportedValue(_container);
-        _container.Compose(batch);
-        
-        _modules = _container.GetExportedValues<IModule>().ToArray();
-        _logger.Info($"Begin loading modules [{_modules.Length} items]");
-        foreach (var module in _modules)
+        batch.AddExportedValue(container);
+        container.Compose(batch);
+
+        var modules = container.GetExports<IModule, IModuleMetadata>().ToArray();
+        var sort = modules.ToDictionary(_=>_.Metadata.Name, _=>_.Metadata.Dependency);
+        Logger.Info($"Begin loading modules [{modules.Length} items]");
+        foreach (var moduleName in DepthFirstSearch.Sort(sort))
         {
             try
             {
-                _logger.Trace($"Init {module.GetType().Name}");
+                Logger.Trace($"Init {moduleName}");
+                var module = modules.First(_ => _.Metadata.Name == moduleName).Value;
                 module.Init();
                 module.DisposeItWith(Disposable);
             }
             catch (Exception e)
             {
-                _logger.Error($"Error to init module '{module}':{e.Message}");
+                Logger.Error($"Error to init module '{moduleName}':{e.Message}");
                 throw;
             }
         }
@@ -51,7 +52,9 @@ internal class SdrService : DisposableOnceWithCancel
     {
         get
         {
-            yield return this.GetType().Assembly;           // [this]
+            yield return this.GetType().Assembly;               // [this]
+            yield return typeof(IModule).Assembly;              // [Asv.Drones.Sdr.Core]
+            yield return typeof(VirtualAnalyzerIls).Assembly;   // [Asv.Drones.Sdr.Virtual]
         }
     }
 }

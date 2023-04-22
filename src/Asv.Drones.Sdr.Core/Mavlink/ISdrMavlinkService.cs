@@ -1,6 +1,6 @@
 ﻿using Asv.Mavlink;
 
-namespace Asv.Drones.Sdr;
+namespace Asv.Drones.Sdr.Core.Mavlink;
 
 public interface ISdrMavlinkService
 {

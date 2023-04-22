@@ -6,7 +6,7 @@ using Asv.Common;
 using Asv.Mavlink;
 using NLog;
 
-namespace Asv.Drones.Sdr;
+namespace Asv.Drones.Sdr.Core.Mavlink;
 
 public class GbsServerServiceConfig
 {
@@ -18,8 +18,8 @@ public class GbsServerServiceConfig
 #if DEBUG
         new MavlinkPortConfig
         {
-            ConnectionString = "tcp://127.0.0.1:7342",
-            Name = "Debug to Asv.Drones.Gui",
+            ConnectionString = "tcp://127.0.0.1:5762",
+            Name = "Debug to SITL",
             IsEnabled = true
         }
 #else
@@ -37,6 +37,7 @@ public class GbsServerServiceConfig
     public byte ComponentId { get; set; } = 15;
     public byte SystemId { get; set; } = 1;
     public SdrServerDeviceConfig Server { get; set; } = new();
+    public bool WrapToV2ExtensionEnabled { get; set; } = true;
 }
 
 [Export(typeof(ISdrMavlinkService))]
@@ -50,6 +51,7 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
     {
         Router = new MavlinkRouter(MavlinkV2Connection.RegisterDefaultDialects).DisposeItWith(Disposable);
         var cfg = config.Get<GbsServerServiceConfig>();
+        Router.WrapToV2ExtensionEnabled = cfg.WrapToV2ExtensionEnabled;
         foreach (var port in cfg.Ports)
         {
             Logger.Trace($"Add port {port.Name}: {port.ConnectionString}");

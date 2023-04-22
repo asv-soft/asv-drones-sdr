@@ -2,7 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr", "Asv.Drones.Sdr\Asv.Drones.Sdr.csproj", "{FBF94233-0993-4CDB-80BA-674F982DDEEF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Mavlink", "..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj", "{F70D5527-E973-4C22-B0E5-71C8E55FB120}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr.Core", "Asv.Drones.Sdr.Core\Asv.Drones.Sdr.Core.csproj", "{11A23E90-FFF0-4FD2-B788-055A04106BCD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr.Virtual", "Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj", "{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,9 +16,13 @@ Global
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F70D5527-E973-4C22-B0E5-71C8E55FB120}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

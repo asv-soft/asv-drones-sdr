@@ -1,30 +1,31 @@
 ﻿using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
+using System.ComponentModel.Composition.Primitives;
 using System.Diagnostics;
 using System.Reactive.Linq;
 using Asv.Cfg;
 using Asv.Common;
-using Asv.Drones.Sdr.GnssSource;
+using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
 using Asv.Mavlink.V2.Common;
 using NLog;
 
-namespace Asv.Drones.Sdr
+namespace Asv.Drones.Sdr.Core
 {
 
     public class DeviceModeSwitcherConfig
     {
         public int RecordSendDelayMs { get; set; } = 100;
-        public int StatUpdateMs { get; set; } = 5000;
-        public string DeviceClass { get; set; } = "Virtual";
+        public int StatisticUpdateMs { get; set; } = 30_000;
     }
     
-    [Export(typeof(IModule))]
+    [ExportModule(Name,WorkModeCheckConfigModule.Name)]
     [PartCreationPolicy(CreationPolicy.Shared)]
-    public class DeviceModeSwitcher : DisposableOnceWithCancel, IModule
+    public class DeviceModeSwitcherModule : DisposableOnceWithCancel, IModule
     {
-        
+        private const string Name = "ModeSwitcher";
+
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
         private readonly IRecordStore _store;
@@ -43,38 +44,41 @@ namespace Asv.Drones.Sdr
         private readonly object _sync = new();
         private IRecordDataWriter? _currentRecord;
         private uint _recordCounter;
-        
-
 
         [ImportingConstructor]
-        public DeviceModeSwitcher(ISdrMavlinkService svc, CompositionContainer container,IRecordStore store,  IConfiguration config)
+        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IRecordStore store, IConfiguration config)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _container = container ?? throw new ArgumentNullException(nameof(container));
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _config = config.Get<DeviceModeSwitcherConfig>();
-            if (_config.DeviceClass.IsNullOrWhiteSpace())
-            {
-                _config.DeviceClass = DeviceClass.Virtual;
-            }
+           
             foreach (var item in Enum.GetValues(typeof(AsvSdrCustomMode)).Cast<AsvSdrCustomMode>())
             {
-                var lazyImpl = _container.GetExport<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(item,_config.DeviceClass));
-                if (lazyImpl == null) continue;
-                _svc.Server.SdrEx.Base.Set(_ =>
+                var items = _container.GetExports<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(item)).ToArray();
+                switch (items.Length)
                 {
-                    // ReSharper disable once BitwiseOperatorOnEnumWithoutFlags
-                    _.SupportedModes |= lazyImpl.Metadata.Flag;
-                });
+                    case 0:
+                        continue;
+                    case > 1:
+                        throw new Exception("Too may implementations for mode: " + item);
+                    default:
+                        _svc.Server.SdrEx.Base.Set(_ =>
+                        {
+                            // ReSharper disable once BitwiseOperatorOnEnumWithoutFlags
+                            _.SupportedModes |= items.First().Metadata.Flag;
+                        });
+                        break;
+                }
             }
             
             _currentMode = IdleWorkMode.Instance;
             
             _recordTickElapsedTime.PushFront(0);
-            if (_config.StatUpdateMs > 0)
+            if (_config.StatisticUpdateMs > 0)
             {
-                Observable.Timer(TimeSpan.FromMilliseconds(_config.StatUpdateMs), TimeSpan.FromMilliseconds(_config.StatUpdateMs))
+                Observable.Timer(TimeSpan.FromMilliseconds(_config.StatisticUpdateMs), TimeSpan.FromMilliseconds(_config.StatisticUpdateMs))
                 .Subscribe(_ =>
                 {
                     var recordTick = _recordTickElapsedTime.Average();
@@ -100,7 +104,6 @@ namespace Asv.Drones.Sdr
 
             _store.Count.Subscribe(count => _svc.Server.SdrEx.Base.Set(_ => _.RecordCount = count)).DisposeItWith(Disposable);
             _store.Size.Subscribe(size => _svc.Server.SdrEx.Base.Set(_ => _.Size = size)).DisposeItWith(Disposable);
-
             
             #endregion
             
@@ -313,6 +316,8 @@ namespace Asv.Drones.Sdr
         
         private async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,int sendingThinningRatio, CancellationToken cancel)
         {
+            if (_currentMode.Mode == mode) return MavResult.MavResultAccepted;
+            
             Logger.Info($"Set mode {mode:G} Freq:{frequencyHz} Hz, recordRate:{recordRate:F1}Hz thinning:{sendingThinningRatio}");
 
             var recordDelay = (int)(1000.0 / recordRate);
@@ -354,7 +359,7 @@ namespace Asv.Drones.Sdr
             Lazy<IWorkMode,IWorkModeMetadata>? newMode = null;
             try
             {
-                newMode = _container.GetExport<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(mode,_config.DeviceClass));
+                newMode = _container.GetExport<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(mode));
             }
             catch (Exception e)
             {
@@ -474,14 +479,14 @@ namespace Asv.Drones.Sdr
             {
                 var mode = _currentMode;
                 var writer = _currentRecord;
-                
+               
                 var dataIndex = Interlocked.Increment(ref _recordCounter);
                 if (dataIndex % ratio == 0)
                 {
                     // need save and send
                     await _svc.Server.SdrEx.Base.SendRecordData(_currentMode.Mode, payload =>
                     {
-                        mode.Fill(dataIndex, payload);
+                        mode.Fill(writer?.RecordId ?? RecordId.Empty,dataIndex, payload);
                         writer?.Write(dataIndex,_currentMode.Mode, payload);
                     });
                 }
@@ -489,7 +494,7 @@ namespace Asv.Drones.Sdr
                 {
                     // need save only
                     var data = _svc.Server.SdrEx.Base.CreateRecordData(_currentMode.Mode);
-                    mode.Fill(dataIndex, data.Payload);
+                    mode.Fill(writer?.RecordId ?? RecordId.Empty,dataIndex, data.Payload);
                     writer?.Write(dataIndex,_currentMode.Mode, data.Payload);
                 }
             }
