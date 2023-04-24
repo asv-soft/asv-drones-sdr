@@ -42,20 +42,23 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     }
 
     protected TAnalyzer Analyzer => _analyser;
-    
+
+    public ulong FrequencyHz { get; private set; }
+
     public Task Init(ulong frequencyHz, CancellationToken cancel)
     {
+        FrequencyHz = frequencyHz;
         return _analyser.Init(frequencyHz, cancel);
     }
 
     public AsvSdrCustomMode Mode { get; }
 
-    public void Fill(RecordId writerRecordId, uint dataIndex, IPayload payload)
+    public void Fill(Guid writerRecordId, uint dataIndex, IPayload payload)
     {
         InternalFill((TPayload)payload,writerRecordId, dataIndex, _gnssSource.Gnss.Value, _gnssSource.Attitude.Value, _gnssSource.Position.Value);
     }
 
-    protected abstract void InternalFill(TPayload payload, RecordId record, uint dataIndex,
+    protected abstract void InternalFill(TPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload gnss, AttitudePayload attitude, GlobalPositionIntPayload position);
 }
 

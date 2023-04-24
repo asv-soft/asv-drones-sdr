@@ -8,36 +8,27 @@ public interface IRecordStore
 {
     IRxValue<ushort> Count { get; }
     IRxValue<ulong> Size { get; }
-    IList<IRecordInfo> GetRecords(ushort reqSkip, ushort reqCount);
-    IList<ITagInfo> GetTags(RecordId recordId, ushort reqSkip, ushort reqCount);
-    bool DeleteRecord(RecordId recordId);
-    bool DeleteTag(TagId tagId);
-    IList<IRecordData> GetData(RecordId recordId, uint reqSkip, uint reqCount);
-    void SetTag(ServerRecordTag tag);
-    IRecordDataWriter OpenWrite(RecordId recordId);
-    bool Exists(RecordId recordId);
+    IReadOnlyList<Guid> GetRecords(ushort skip, ushort count);
+    bool DeleteRecord(Guid recordId);
+    IRecordDataWriter OpenWrite(string recordName, AsvSdrCustomMode mode, ulong frequency);
+    IRecordDataReader OpenRead(Guid recordId);
+    bool Exist(Guid recordId);
 }
 
-public interface ITagInfo
+public interface IRecordDataReader:IDisposable
 {
-    void Fill(AsvSdrRecordTagPayload obj);
-}
-
-public interface IRecordInfo
-{
-    void Fill(AsvSdrRecordPayload obj);
-}
-
-public interface IRecordData
-{
+    void Fill(AsvSdrRecordPayload payload);
+    void Fill(Guid tag, AsvSdrRecordTagPayload asvSdrRecordTagPayload);
+    IReadOnlyList<Guid> GetTags(ushort skip, ushort count);
+    bool DeleteTag(Guid tagId);
+    uint GetRecordsCount(uint skip, uint count);
+    void Fill(uint index, IPayload payload);
     AsvSdrCustomMode Mode { get; }
-    void Fill(IPayload obj);
 }
 
 public interface IRecordDataWriter:IDisposable
 {
-    RecordId RecordId { get; }
-    void SetTag(ServerRecordTag tag);
+    Guid RecordId { get; }
     void Write(uint dataIndex, AsvSdrCustomMode currentModeMode, IPayload payload);
-    
+    Guid SetTag(AsvSdrRecordTagType type, string name, byte[] value);
 }

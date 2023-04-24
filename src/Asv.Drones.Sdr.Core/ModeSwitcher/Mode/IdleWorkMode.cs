@@ -7,14 +7,16 @@ namespace Asv.Drones.Sdr.Core;
 public class IdleWorkMode : IWorkMode
 {
     public static IWorkMode Instance { get; } = new IdleWorkMode();
-    
+
+    public ulong FrequencyHz => 0;
+
     public Task Init(ulong frequencyHz, CancellationToken cancel)
     {
         return Task.CompletedTask;
     }
 
     public AsvSdrCustomMode Mode => AsvSdrCustomMode.AsvSdrCustomModeIdle;
-    public void Fill(RecordId writerRecordId, uint dataIndex, IPayload payload)
+    public void Fill(Guid writerRecordId, uint dataIndex, IPayload payload)
     {
         throw new NotImplementedException();
     }

@@ -7,16 +7,16 @@ using Asv.Mavlink.V2.Common;
 
 namespace Asv.Drones.Sdr.Core;
 
-[ExportMode(AsvSdrCustomMode.AsvSdrCustomModeLlz, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagLlz)]
+[ExportMode(AsvSdrCustomMode.AsvSdrCustomModeVor, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagVor)]
 [PartCreationPolicy(CreationPolicy.NonShared)]
-public class LlzWorkMode : WorkModeBase<IAnalyzerIls, AsvSdrRecordDataLlzPayload>
+public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload>
 {
     [ImportingConstructor]
-    public LlzWorkMode(IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container) 
-        : base(AsvSdrCustomMode.AsvSdrCustomModeLlz , gnssSource, configuration, container)
+    public VorWorkMode(IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container) 
+        : base(AsvSdrCustomMode.AsvSdrCustomModeGp , gnssSource, configuration, container)
     {
     }
-    protected override void InternalFill(AsvSdrRecordDataLlzPayload payload, Guid record, uint dataIndex,
+    protected override void InternalFill(AsvSdrRecordDataVorPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload gnss, AttitudePayload attitude,
         GlobalPositionIntPayload position)
     {
@@ -51,5 +51,5 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerIls, AsvSdrRecordDataLlzPayload
         payload.Yaw = attitude.Yaw;
         // Measure
         Analyzer.Fill(payload);
-    }
+    }   
 }
