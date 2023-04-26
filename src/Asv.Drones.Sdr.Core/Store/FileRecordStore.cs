@@ -267,6 +267,7 @@ public class RecordDataWrapper : DisposableOnceWithCancel, IRecordDataReader,IRe
             var id = Guid.NewGuid();
             Metadata.Tags.Add(new TagJsonMetadata
             {
+                Id = id,
                 Type = type,
                 Name = name,
                 Value = value,
