@@ -13,7 +13,7 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
 {
     [ImportingConstructor]
     public VorWorkMode(IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container) 
-        : base(AsvSdrCustomMode.AsvSdrCustomModeGp , gnssSource, configuration, container)
+        : base(AsvSdrCustomMode.AsvSdrCustomModeVor , gnssSource, configuration, container)
     {
     }
     protected override void InternalFill(AsvSdrRecordDataVorPayload payload, Guid record, uint dataIndex,

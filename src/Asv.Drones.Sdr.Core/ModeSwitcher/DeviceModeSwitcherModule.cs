@@ -25,7 +25,7 @@ namespace Asv.Drones.Sdr.Core
     [PartCreationPolicy(CreationPolicy.Shared)]
     public class DeviceModeSwitcherModule : DisposableOnceWithCancel, IModule
     {
-        private const string Name = "ModeSwitcher";
+        public const string Name = "ModeSwitcher";
 
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;

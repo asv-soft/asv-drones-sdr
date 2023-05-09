@@ -26,18 +26,19 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
         _gnssSource = gnssSource ?? throw new ArgumentNullException(nameof(gnssSource));
         var cfg = configuration.Get<WorkModeBaseConfig>();
         var implDict = cfg.Analyzers[mode.ToString("G")];
-        if (implDict.Count == 0) throw new Exception($"Cfg: {nameof(TAnalyzer)} implementation not found");
+        if (implDict.Count == 0) throw new Exception($"Cfg: {typeof(TAnalyzer).Name} implementation not found");
         var deviceImplName = implDict.First(_ => _.Value).Key;
         var availableDevices = container.GetExports<IAnalyzer, IAnalyzerMetadata>(ExportAnalyzerAttribute.GetContractName(mode));
         var deviceImpl = availableDevices.FirstOrDefault(_ => _.Metadata.Name == deviceImplName);
         if (deviceImpl == null)
         {
-            throw new Exception($"Cfg: {nameof(TAnalyzer)} with name {deviceImplName} not found");
+            throw new Exception($"Cfg: {typeof(TAnalyzer).Name} with name {deviceImplName} not found");
         }
         if (deviceImpl.Value is not TAnalyzer analyzer)
         {
-            throw new Exception($"Cfg: {deviceImpl.Value.GetType().Name} not implement {nameof(TAnalyzer)}");
+            throw new Exception($"Cfg: {deviceImpl.Value.GetType().Name} not implement {typeof(TAnalyzer).Name}");
         }
+        Disposable.Add(deviceImpl.Value);
         _analyser = analyzer;
     }
 

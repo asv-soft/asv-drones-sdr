@@ -9,7 +9,7 @@ namespace Asv.Drones.Sdr.Core;
 
 [ExportMode(AsvSdrCustomMode.AsvSdrCustomModeLlz, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagLlz)]
 [PartCreationPolicy(CreationPolicy.NonShared)]
-public class LlzWorkMode : WorkModeBase<IAnalyzerIls, AsvSdrRecordDataLlzPayload>
+public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload>
 {
     [ImportingConstructor]
     public LlzWorkMode(IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container) 

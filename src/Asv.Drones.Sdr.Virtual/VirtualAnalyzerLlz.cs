@@ -7,12 +7,12 @@ namespace Asv.Drones.Sdr.Virtual;
 
 [ExportAnalyzer(AsvSdrCustomMode.AsvSdrCustomModeLlz, "Virtual")]
 [PartCreationPolicy(CreationPolicy.NonShared)]
-public class VirtualAnalyzerIls : IAnalyzerIls
+public class VirtualAnalyzerLlz : IAnalyzerLlz
 {
     private readonly NormalRandom _random;
 
     [ImportingConstructor]
-    public VirtualAnalyzerIls()
+    public VirtualAnalyzerLlz()
     {
         _random = new NormalRandom();
     }
@@ -54,5 +54,9 @@ public class VirtualAnalyzerIls : IAnalyzerIls
         // payload.CodeIdAm1020 = _gnssSource.CodeIdAm1020;
         //
         // payload.MeasureTime = _gnssSource.MeasureTime;
+    }
+
+    public void Dispose()
+    {
     }
 }

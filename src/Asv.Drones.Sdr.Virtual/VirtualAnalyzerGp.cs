@@ -16,4 +16,8 @@ public class VirtualAnalyzerGp : IAnalyzerGp
     public void Fill(AsvSdrRecordDataGpPayload payload)
     {
     }
+
+    public void Dispose()
+    {
+    }
 }

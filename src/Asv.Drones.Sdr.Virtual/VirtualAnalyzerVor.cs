@@ -17,4 +17,8 @@ public class VirtualAnalyzerVor : IAnalyzerVor
     {
         
     }
+
+    public void Dispose()
+    {
+    }
 }

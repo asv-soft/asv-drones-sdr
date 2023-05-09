@@ -4,7 +4,7 @@ namespace Asv.Drones.Sdr.Core;
 
 [MetadataAttribute]
 [AttributeUsage(AttributeTargets.Class)]
-sealed class ExportModuleAttribute : ExportAttribute,IModuleMetadata
+public class ExportModuleAttribute : ExportAttribute,IModuleMetadata
 {
     public string Name { get; }
     public string[] Dependency { get; }
