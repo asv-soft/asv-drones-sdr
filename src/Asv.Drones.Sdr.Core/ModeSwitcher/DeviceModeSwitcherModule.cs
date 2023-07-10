@@ -3,6 +3,7 @@ using System.ComponentModel.Composition.Hosting;
 using System.ComponentModel.Composition.Primitives;
 using System.Diagnostics;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices;
 using Asv.Cfg;
 using Asv.Common;
 using Asv.Drones.Sdr.Core.Mavlink;
@@ -95,6 +96,7 @@ namespace Asv.Drones.Sdr.Core
             _svc.Server.SdrEx.StopRecord = StopRecord;  
             _svc.Server.SdrEx.CurrentRecordSetTag = CurrentRecordSetTag;
             _svc.Server.SdrEx.SetMode = SetMode;
+            _svc.Server.SdrEx.SystemControlAction = SystemControlAction;
             _svc.Server.SdrEx.Base.OnRecordRequest.Subscribe(OnRecordRequest).DisposeItWith(Disposable);
             _svc.Server.SdrEx.Base.OnRecordTagRequest.Subscribe(OnRecordTagRequest).DisposeItWith(Disposable);
             _svc.Server.SdrEx.Base.OnRecordDeleteRequest.Subscribe(OnRecordDeleteRequest).DisposeItWith(Disposable);
@@ -483,6 +485,41 @@ namespace Asv.Drones.Sdr.Core
                     return Task.FromResult(MavResult.MavResultFailed);
                 }
             }
+        }
+
+        private Task<MavResult> SystemControlAction(AsvSdrSystemControlAction action, CancellationToken cancel)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                switch (action)
+                {
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionReboot:
+                        Process.Start("shutdown", "/r /t 0");
+                        return Task.FromResult(MavResult.MavResultAccepted);
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionShutdown:
+                        Process.Start("shutdown", "/s /t 0");
+                        return Task.FromResult(MavResult.MavResultAccepted);
+                    default:
+                        return Task.FromResult(MavResult.MavResultFailed);
+                }
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                switch (action)
+                {
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionReboot:
+                        Process.Start("sudo reboot");
+                        return Task.FromResult(MavResult.MavResultAccepted);
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionShutdown:
+                        Process.Start("sudo shutdown -h now");
+                        return Task.FromResult(MavResult.MavResultAccepted);
+                    default:
+                        return Task.FromResult(MavResult.MavResultFailed);
+                }
+            }
+            
+            return Task.FromResult(MavResult.MavResultFailed);
         }
         
         private async void RecordTick(object? state)
