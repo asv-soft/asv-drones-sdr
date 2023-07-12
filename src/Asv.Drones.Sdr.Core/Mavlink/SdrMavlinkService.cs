@@ -47,7 +47,7 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     
     [ImportingConstructor]
-    public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator,CompositionContainer container)
+    public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator, CompositionContainer container)
     {
         Router = new MavlinkRouter(MavlinkV2Connection.RegisterDefaultDialects).DisposeItWith(Disposable);
         var cfg = config.Get<GbsServerServiceConfig>();
@@ -58,11 +58,12 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             Router.AddPort(port);
         }
         Logger.Trace($"Create device SYS:{cfg.SystemId}, COM:{cfg.ComponentId}");    
-        Server = new SdrServerDevice(Router,sequenceCalculator, new MavlinkServerIdentity
+        Server = new SdrServerDevice(Router, sequenceCalculator, new MavlinkServerIdentity
             {
                 ComponentId = cfg.ComponentId,
-                SystemId = cfg.SystemId,
-            },cfg.Server,Scheduler.Default)
+                SystemId = cfg.SystemId
+            }, cfg.Server,Scheduler.Default, Array.Empty<IMavParamTypeMetadata>(),
+                new MavParamCStyleEncoding(), config)
             .DisposeItWith(Disposable);
         Server.Start();
     }
