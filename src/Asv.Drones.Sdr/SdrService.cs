@@ -5,7 +5,6 @@ using System.Reflection;
 using Asv.Cfg;
 using Asv.Common;
 using Asv.Drones.Sdr.Core;
-using Asv.Drones.Sdr.Lms;
 using Asv.Drones.Sdr.Virtual;
 using Asv.Mavlink;
 using NLog;
@@ -56,7 +55,11 @@ internal class SdrService : DisposableOnceWithCancel
             yield return GetType().Assembly;                    // [this]
             yield return typeof(IModule).Assembly;              // [Asv.Drones.Sdr.Core]
             yield return typeof(VirtualAnalyzerLlz).Assembly;   // [Asv.Drones.Sdr.Virtual]
-            yield return typeof(LmsModule).Assembly;            // [Asv.Drones.Sdr.Lms]
+            
+            // This section is for private plugins
+#if PROPRIETARY
+            yield return typeof(Lms.LmsModule).Assembly;        // [Asv.Drones.Sdr.Lms]
+#endif
         }
     }
 }

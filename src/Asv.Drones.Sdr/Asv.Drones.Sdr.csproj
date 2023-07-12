@@ -7,6 +7,20 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DefineConstants>TRACE;PROPRIETARY</DefineConstants>
+    </PropertyGroup>
+
+    <Choose>
+        <When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch( $(DefineConstants), '^(.*;)*PROPRIETARY(;.*)*$'))">
+            <!-- When PROPRIETARY is defined. -->
+            <ItemGroup>
+                <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
+            </ItemGroup>
+        </When>
+        <!-- other conditions -->
+    </Choose>
+    
     <ItemGroup>
         <PackageReference Include="Asv.Cfg" Version="1.8.1" />
         <PackageReference Include="Asv.Common" Version="1.8.1" />
@@ -18,7 +32,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
       <ProjectReference Include="..\Asv.Drones.Sdr.Core\Asv.Drones.Sdr.Core.csproj" />
       <ProjectReference Include="..\Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj" />
     </ItemGroup>
