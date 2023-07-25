@@ -22,10 +22,10 @@ public class MavlinkGnssSourceConfig
 public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource
 {
     private readonly ISdrMavlinkService _svc;
-    private readonly RxValue<GpsRawIntPayload> _gnss;
+    private readonly RxValue<GpsRawIntPayload?> _gnss;
     private readonly MavlinkGnssSourceConfig _config;
-    private readonly RxValue<AttitudePayload> _attitude;
-    private readonly RxValue<GlobalPositionIntPayload> _position;
+    private readonly RxValue<AttitudePayload?> _attitude;
+    private readonly RxValue<GlobalPositionIntPayload?> _position;
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly LinkIndicator _link = new(3);
     private bool _needToRequestAgain;
@@ -39,11 +39,11 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource
         
         _config = config.Get<MavlinkGnssSourceConfig>();
         var pkts = svc.Router.FilterVehicle(_config.GnssSystemId, _config.GnssComponentId).Publish().RefCount();
-        _position = new RxValue<GlobalPositionIntPayload>().DisposeItWith(Disposable);
+        _position = new RxValue<GlobalPositionIntPayload?>().DisposeItWith(Disposable);
         pkts.Filter<GlobalPositionIntPacket>().Select(_=>_.Payload).Subscribe(_position).DisposeItWith(Disposable);
-        _gnss = new RxValue<GpsRawIntPayload>().DisposeItWith(Disposable);
+        _gnss = new RxValue<GpsRawIntPayload?>().DisposeItWith(Disposable);
         pkts.Filter<GpsRawIntPacket>().Select(_=>_.Payload).Subscribe(_gnss).DisposeItWith(Disposable);
-        _attitude = new RxValue<AttitudePayload>().DisposeItWith(Disposable);
+        _attitude = new RxValue<AttitudePayload?>().DisposeItWith(Disposable);
         pkts.Filter<AttitudePacket>().Select(_=>_.Payload).Subscribe(_attitude).DisposeItWith(Disposable);
         pkts.Filter<HeartbeatPacket>().Where(_=>_.Payload.Autopilot == MavAutopilot.MavAutopilotArdupilotmega).Subscribe(_=>
         {
@@ -93,10 +93,10 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource
         }
     }
 
-    public IRxValue<GpsRawIntPayload> Gnss => _gnss;
+    public IRxValue<GpsRawIntPayload?> Gnss => _gnss;
 
-    public IRxValue<GlobalPositionIntPayload> Position => _position;
+    public IRxValue<GlobalPositionIntPayload?> Position => _position;
 
-    public IRxValue<AttitudePayload> Attitude => _attitude;
+    public IRxValue<AttitudePayload?> Attitude => _attitude;
 }
 
