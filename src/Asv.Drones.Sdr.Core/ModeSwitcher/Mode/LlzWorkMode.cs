@@ -17,38 +17,78 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload
     {
     }
     protected override void InternalFill(AsvSdrRecordDataLlzPayload payload, Guid record, uint dataIndex,
-        GpsRawIntPayload gnss, AttitudePayload attitude,
-        GlobalPositionIntPayload position)
+        GpsRawIntPayload? gnss, AttitudePayload? attitude,
+        GlobalPositionIntPayload? position)
     {
         payload.DataIndex = dataIndex;
         record.TryWriteBytes(payload.RecordGuid);
         // GNSS
-        payload.GnssFixType = gnss.FixType;
-        payload.GnssLat = gnss.Lat;
-        payload.GnssLon = gnss.Lon;
-        payload.GnssAlt = gnss.Alt;
-        payload.GnssEph = gnss.Eph;
-        payload.GnssEpv = gnss.Epv;
-        payload.GnssVel = gnss.Vel;
-        payload.GnssVel = gnss.Vel;
-        payload.GnssSatellitesVisible = gnss.SatellitesVisible;
-        payload.GnssAltEllipsoid = gnss.AltEllipsoid;
-        payload.GnssHAcc = gnss.HAcc;
-        payload.GnssVAcc = gnss.VAcc;
-        payload.GnssVelAcc = gnss.VelAcc;
+        if (gnss != null)
+        {
+            payload.GnssFixType = gnss.FixType;
+            payload.GnssLat = gnss.Lat;
+            payload.GnssLon = gnss.Lon;
+            payload.GnssAlt = gnss.Alt;
+            payload.GnssEph = gnss.Eph;
+            payload.GnssEpv = gnss.Epv;
+            payload.GnssVel = gnss.Vel;
+            payload.GnssSatellitesVisible = gnss.SatellitesVisible;
+            payload.GnssAltEllipsoid = gnss.AltEllipsoid;
+            payload.GnssHAcc = gnss.HAcc;
+            payload.GnssVAcc = gnss.VAcc;
+            payload.GnssVelAcc = gnss.VelAcc;
+        }
+        else
+        {
+            payload.GnssFixType = GpsFixType.GpsFixTypeNoGps;
+            payload.GnssLat = 0;
+            payload.GnssLon = 0;
+            payload.GnssAlt = 0;
+            payload.GnssEph = 0;
+            payload.GnssEpv = 0;
+            payload.GnssVel = 0;
+            payload.GnssSatellitesVisible = 0;
+            payload.GnssAltEllipsoid = 0;
+            payload.GnssHAcc = 0;
+            payload.GnssVAcc = 0;
+            payload.GnssVelAcc = 0;
+        }
         // Global position
-        payload.Lat = position.Lat;
-        payload.Lon = position.Lon;
-        payload.Alt = position.Alt;
-        payload.RelativeAlt = position.RelativeAlt;
-        payload.Vx = position.Vx;
-        payload.Vy = position.Vy;
-        payload.Vz = position.Vz;
-        payload.Hdg = position.Hdg;
+        if (position != null)
+        {
+            payload.Lat = position.Lat;
+            payload.Lon = position.Lon;
+            payload.Alt = position.Alt;
+            payload.RelativeAlt = position.RelativeAlt;
+            payload.Vx = position.Vx;
+            payload.Vy = position.Vy;
+            payload.Vz = position.Vz;
+            payload.Hdg = position.Hdg;
+        }
+        else
+        {
+            payload.Lat = 0;
+            payload.Lon = 0;
+            payload.Alt = 0;
+            payload.RelativeAlt = 0;
+            payload.Vx = 0;
+            payload.Vy = 0;
+            payload.Vz = 0;
+            payload.Hdg = 0;
+        }
         // Attitude
-        payload.Roll = attitude.Roll;
-        payload.Pitch = attitude.Pitch;
-        payload.Yaw = attitude.Yaw;
+        if (attitude != null)
+        {
+            payload.Roll = attitude.Roll;
+            payload.Pitch = attitude.Pitch;
+            payload.Yaw = attitude.Yaw;
+        }
+        else
+        {
+            payload.Roll = 0;
+            payload.Pitch = 0;
+            payload.Yaw = 0;
+        }
         // Measure
         Analyzer.Fill(payload);
     }

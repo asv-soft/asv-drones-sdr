@@ -60,6 +60,6 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     }
 
     protected abstract void InternalFill(TPayload payload, Guid record, uint dataIndex,
-        GpsRawIntPayload gnss, AttitudePayload attitude, GlobalPositionIntPayload position);
+        GpsRawIntPayload? gnss, AttitudePayload? attitude, GlobalPositionIntPayload? position);
 }
 
