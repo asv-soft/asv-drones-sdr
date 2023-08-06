@@ -16,7 +16,7 @@ public class IdleWorkMode : IWorkMode
     }
 
     public AsvSdrCustomMode Mode => AsvSdrCustomMode.AsvSdrCustomModeIdle;
-    public void Fill(Guid writerRecordId, uint dataIndex, IPayload payload)
+    public void ReadData(Guid writerRecordId, uint dataIndex, IPayload payload)
     {
         throw new NotImplementedException();
     }

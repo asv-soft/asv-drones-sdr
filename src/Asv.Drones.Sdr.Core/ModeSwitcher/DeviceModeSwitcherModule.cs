@@ -20,6 +20,7 @@ namespace Asv.Drones.Sdr.Core
         public int RecordSendDelayMs { get; set; } = 50;
         public int StatisticUpdateMs { get; set; } = 30_000;
         public int MaxRecordSendPerRequest { get; set; } = 500;
+        public string SdrRecordStoreFolder { get; set; } = "records";
     }
     
     [ExportModule(Name,WorkModeCheckConfigModule.Name)]
@@ -30,7 +31,7 @@ namespace Asv.Drones.Sdr.Core
 
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
-        private readonly IRecordStore _store;
+        private readonly IAsvSdrStore _store;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private IWorkMode _currentMode;
         private int _isBusy;
@@ -44,17 +45,19 @@ namespace Asv.Drones.Sdr.Core
         private int _errorRecordTick;
         
         private readonly object _sync = new();
-        private IRecordDataWriter? _currentRecord;
+        private IListDataFile<AsvSdrRecordFileMetadata>? _currentRecord;
+        private Guid _currentRecordId;
         private uint _recordCounter;
+        
 
         [ImportingConstructor]
-        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IRecordStore store, IConfiguration config)
+        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _container = container ?? throw new ArgumentNullException(nameof(container));
-            _store = store ?? throw new ArgumentNullException(nameof(store));
             _config = config.Get<DeviceModeSwitcherConfig>();
+            _store = new AsvSdrRecordStore(_config.SdrRecordStoreFolder);
            
             foreach (var item in Enum.GetValues(typeof(AsvSdrCustomMode)).Cast<AsvSdrCustomMode>())
             {
@@ -132,21 +135,24 @@ namespace Asv.Drones.Sdr.Core
                     return;
                 }
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetFile(recordId, out var entry) == false)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordDataResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
+                    return;
                 }
+
+               
                 
-                using (var reader = _store.OpenRead(recordId))
+                using (var reader = _store.OpenOrCreateFile(entry.Id,entry.Name,entry.ParentId))
                 {
-                    var count = reader.GetRecordsCount(req.Skip, req.Count);
-                    
+                    var count = reader.GetItemsCount(req.Skip, req.Count);
+                    var metadata = reader.ReadMetadata();
                     await _svc.Server.SdrEx.Base.SendRecordDataResponseSuccess(req,count);
                     for (var i = req.Skip; i < req.Skip + count; i++)
                     {
                         var ii = i;
-                        await _svc.Server.SdrEx.Base.SendRecordData(reader.Mode,_=>reader.Fill(ii,_));
+                        await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>reader.Read(ii,x));
                         await Task.Delay(_config.RecordSendDelayMs);
                     }
                 }
@@ -181,13 +187,13 @@ namespace Asv.Drones.Sdr.Core
                     return;
                 }
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetFile(recordId, out var entry) == false)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
                 var tagId = new Guid(req.TagGuid);
-                using (var reader = _store.OpenRead(recordId))
+                using (var reader = _store.OpenOrCreateFile(entry))
                 {
                     if (reader.DeleteTag(tagId))
                     {
@@ -231,7 +237,7 @@ namespace Asv.Drones.Sdr.Core
                 }
                 var recId = new Guid(req.RecordGuid);
                 
-                if (_store.DeleteRecord(recId))
+                if (_store.DeleteFile(recId))
                 {
                     _svc.Server.StatusText.Info($"Delete {recId}");
                     await _svc.Server.SdrEx.Base.SendRecordDeleteResponseSuccess(req);
@@ -273,18 +279,18 @@ namespace Asv.Drones.Sdr.Core
                     return;
                 }
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetEntry(recordId, out var entry) == false)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
-                using (var reader = _store.OpenRead(recordId))
+                using (var reader = _store.OpenOrCreateFile(entry))
                 {
-                    var items = reader.GetTags(req.Skip, req.Count);
-                    await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Count);
+                    var items = reader.GetTagIds(req.Skip, req.Count).ToArray();
+                    await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Length);
                     foreach (var tag in items)
                     {
-                        await _svc.Server.SdrEx.Base.SendRecordTag(_=>reader.Fill(tag,_));
+                        await _svc.Server.SdrEx.Base.SendRecordTag(_=>reader.WriteTag(tag,_));
                         await Task.Delay(_config.RecordSendDelayMs);
                     }
                 }
@@ -318,14 +324,14 @@ namespace Asv.Drones.Sdr.Core
                     await _svc.Server.SdrEx.Base.SendRecordResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
                 }
-                var items = _store.GetRecords(req.Skip, req.Count);
-                await _svc.Server.SdrEx.Base.SendRecordResponseSuccess(req, (ushort)items.Count);
+                var items = _store.GetFiles().Skip(req.Skip).Take(req.Count).ToArray();
+                await _svc.Server.SdrEx.Base.SendRecordResponseSuccess(req, (ushort)items.Length);
                 await Task.Delay(_config.RecordSendDelayMs);
                 foreach (var item in items)
                 {
-                    using (var reader = _store.OpenRead(item))
+                    using (var reader = _store.OpenOrCreateFile(item))
                     {
-                        await _svc.Server.SdrEx.Base.SendRecord(reader.Fill);
+                        await _svc.Server.SdrEx.Base.SendRecord(reader.Write);
                     }
                     //delay between sending records
                     await Task.Delay(_config.RecordSendDelayMs);
@@ -435,9 +441,14 @@ namespace Asv.Drones.Sdr.Core
                 if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
                 _currentRecord.Dispose();
                 _currentRecord = null;
+                _currentRecordId = Guid.Empty;
                 Interlocked.Exchange(ref _recordCounter, 0);
             }
-            _svc.Server.SdrEx.Base.Set(_ => Guid.Empty.TryWriteBytes(_.CurrentRecordGuid));
+            _svc.Server.SdrEx.Base.Set(_ =>
+            {
+                Guid.Empty.TryWriteBytes(_.CurrentRecordGuid);
+                MavlinkTypesHelper.SetString(_.CurrentRecordName,string.Empty);
+            });
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
@@ -453,9 +464,15 @@ namespace Asv.Drones.Sdr.Core
             lock (_sync)
             {
                 if (_currentRecord != null) return Task.FromResult(MavResult.MavResultAccepted);
-                _currentRecord = _store.OpenWrite(recordName, _currentMode.Mode, _currentMode.FrequencyHz);
+                _currentRecordId = Guid.NewGuid();
+                Interlocked.Exchange(ref _recordCounter, 0);
+                _currentRecord = _store.OpenOrCreateFile(_currentRecordId,  recordName,_store.RootFolderId);
             }
-            _svc.Server.SdrEx.Base.Set(_ => _currentRecord.RecordId.TryWriteBytes(_.CurrentRecordGuid) );
+            _svc.Server.SdrEx.Base.Set(_ =>
+            {
+                _currentRecordId.TryWriteBytes(_.CurrentRecordGuid);
+                MavlinkTypesHelper.SetString(_.CurrentRecordName,recordName);
+            });
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
@@ -476,7 +493,7 @@ namespace Asv.Drones.Sdr.Core
                 }
                 try
                 {
-                    var guid = _currentRecord.SetTag(type, name, value);
+                    _currentRecord.WriteTag(Guid.NewGuid(),_currentRecordId, type, name, value);
                     return Task.FromResult(MavResult.MavResultAccepted);
                 }
                 catch (Exception e)
@@ -542,16 +559,16 @@ namespace Asv.Drones.Sdr.Core
                     // need save and send
                     await _svc.Server.SdrEx.Base.SendRecordData(_currentMode.Mode, payload =>
                     {
-                        mode.Fill(writer?.RecordId ?? Guid.Empty,dataIndex, payload);
-                        writer?.Write(dataIndex,_currentMode.Mode, payload);
+                        mode.ReadData(_currentRecordId,dataIndex, payload);
+                        writer?.Write(dataIndex, payload);
                     });
                 }
                 else
                 {
                     // need save only
                     var data = _svc.Server.SdrEx.Base.CreateRecordData(_currentMode.Mode);
-                    mode.Fill(writer?.RecordId ?? Guid.Empty,dataIndex, data.Payload);
-                    writer?.Write(dataIndex,_currentMode.Mode, data.Payload);
+                    mode.ReadData(_currentRecordId,dataIndex, data.Payload);
+                    writer?.Write(dataIndex, data.Payload);
                 }
             }
             catch (Exception e)
