@@ -54,7 +54,7 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
 
     public AsvSdrCustomMode Mode { get; }
 
-    public void Fill(Guid writerRecordId, uint dataIndex, IPayload payload)
+    public void ReadData(Guid writerRecordId, uint dataIndex, IPayload payload)
     {
         InternalFill((TPayload)payload,writerRecordId, dataIndex, _gnssSource.Gnss.Value, _gnssSource.Attitude.Value, _gnssSource.Position.Value);
     }

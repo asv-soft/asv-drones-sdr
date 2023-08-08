@@ -10,6 +10,6 @@ public interface IWorkMode:IDisposable
     AsvSdrCustomMode Mode { get; }
     ulong FrequencyHz { get; }
     Task Init(ulong frequencyHz, CancellationToken cancel);
-    void Fill(Guid writerRecordId, uint dataIndex, IPayload payload);
+    void ReadData(Guid writerRecordId, uint dataIndex, IPayload payload);
    
 }

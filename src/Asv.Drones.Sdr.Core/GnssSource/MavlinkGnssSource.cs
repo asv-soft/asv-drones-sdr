@@ -18,8 +18,9 @@ public class MavlinkGnssSourceConfig
 }
 
 [Export(typeof(IGnssSource))]
+[Export(typeof(ITimeService))]
 [PartCreationPolicy(CreationPolicy.Shared)]
-public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource
+public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeService
 {
     private readonly ISdrMavlinkService _svc;
     private readonly RxValue<GpsRawIntPayload?> _gnss;
@@ -98,5 +99,11 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource
     public IRxValue<GlobalPositionIntPayload?> Position => _position;
 
     public IRxValue<AttitudePayload?> Attitude => _attitude;
+    public void SetCorrection(long correctionIn100NanosecondsTicks)
+    {
+        throw new NotImplementedException();
+    }
+
+    public DateTime Now => _gnss.Value == null ? DateTime.Now : MavlinkTypesHelper.FromUnixTimeUs(_gnss.Value.TimeUsec);
 }
 
