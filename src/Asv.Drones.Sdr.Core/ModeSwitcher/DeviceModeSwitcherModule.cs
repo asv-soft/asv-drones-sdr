@@ -4,6 +4,8 @@ using System.ComponentModel.Composition.Primitives;
 using System.Diagnostics;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Asv.Cfg;
 using Asv.Common;
 using Asv.Drones.Sdr.Core.Mavlink;
@@ -18,8 +20,6 @@ namespace Asv.Drones.Sdr.Core
     public class DeviceModeSwitcherConfig
     {
         public int RecordSendDelayMs { get; set; } = 50;
-        public int StatisticUpdateMs { get; set; } = 30_000;
-        public int MaxRecordSendPerRequest { get; set; } = 500;
         public string SdrRecordStoreFolder { get; set; } = "records";
     }
     
@@ -31,6 +31,7 @@ namespace Asv.Drones.Sdr.Core
 
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
+        private readonly ITimeService _time;
         private readonly IAsvSdrStore _store;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private IWorkMode _currentMode;
@@ -48,17 +49,20 @@ namespace Asv.Drones.Sdr.Core
         private IListDataFile<AsvSdrRecordFileMetadata>? _currentRecord;
         private Guid _currentRecordId;
         private uint _recordCounter;
-        
+        private readonly Stopwatch _recordStopwatch = new();
+        private readonly MD5 _md5 = MD5.Create();
+
 
         [ImportingConstructor]
-        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config)
+        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config, ITimeService time)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _container = container ?? throw new ArgumentNullException(nameof(container));
+            _time = time ?? throw new ArgumentNullException(nameof(time));
             _config = config.Get<DeviceModeSwitcherConfig>();
             _store = new AsvSdrRecordStore(_config.SdrRecordStoreFolder);
-           
+            _md5.DisposeItWith(Disposable);
             foreach (var item in Enum.GetValues(typeof(AsvSdrCustomMode)).Cast<AsvSdrCustomMode>())
             {
                 var items = _container.GetExports<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(item)).ToArray();
@@ -81,20 +85,6 @@ namespace Asv.Drones.Sdr.Core
             _currentMode = IdleWorkMode.Instance;
             
             _recordTickElapsedTime.PushFront(0);
-            if (_config.StatisticUpdateMs > 0)
-            {
-                Observable.Timer(TimeSpan.FromMilliseconds(_config.StatisticUpdateMs), TimeSpan.FromMilliseconds(_config.StatisticUpdateMs))
-                .Subscribe(_ =>
-                {
-                    var recordTick = _recordTickElapsedTime.Average();
-                    _svc.Server.SdrEx.Base.Set(_ =>
-                    {
-                        _svc.Server.StatusText.Debug($"Rec:{recordTick:F0}ms, skipped: {_skippedRecordTick}, error: {_errorRecordTick}");
-                    });
-                }).DisposeItWith(Disposable);
-                
-            }
-
             _svc.Server.SdrEx.StartRecord = StartRecord;
             _svc.Server.SdrEx.StopRecord = StopRecord;  
             _svc.Server.SdrEx.CurrentRecordSetTag = CurrentRecordSetTag;
@@ -142,21 +132,17 @@ namespace Asv.Drones.Sdr.Core
                     return;
                 }
 
-               
-                
-                using (var reader = _store.OpenOrCreateFile(entry.Id,entry.Name,entry.ParentId))
+
+                using var reader = _store.Open(entry.Id);
+                var count = reader.GetItemsCount(req.Skip, req.Count);
+                var metadata = reader.ReadMetadata();
+                await _svc.Server.SdrEx.Base.SendRecordDataResponseSuccess(req,count);
+                for (var i = req.Skip; i < req.Skip + count; i++)
                 {
-                    var count = reader.GetItemsCount(req.Skip, req.Count);
-                    var metadata = reader.ReadMetadata();
-                    await _svc.Server.SdrEx.Base.SendRecordDataResponseSuccess(req,count);
-                    for (var i = req.Skip; i < req.Skip + count; i++)
-                    {
-                        var ii = i;
-                        await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>reader.Read(ii,x));
-                        await Task.Delay(_config.RecordSendDelayMs);
-                    }
+                    var ii = i;
+                    await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>reader.Read(ii,x));
+                    await Task.Delay(_config.RecordSendDelayMs);
                 }
-               
             }
             catch (Exception e)
             {
@@ -193,18 +179,15 @@ namespace Asv.Drones.Sdr.Core
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
                 var tagId = new Guid(req.TagGuid);
-                using (var reader = _store.OpenOrCreateFile(entry))
+                using var reader = _store.Open(entry.Id);
+                if (reader.DeleteTag(tagId))
                 {
-                    if (reader.DeleteTag(tagId))
-                    {
-                        await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseSuccess(req);
-                    }
-                    else
-                    {
-                        _svc.Server.StatusText.Error("Tag not exist");
-                        await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
-                    }
-                    
+                    await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseSuccess(req);
+                }
+                else
+                {
+                    _svc.Server.StatusText.Error("Tag not exist");
+                    await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
             }
             catch (Exception e)
@@ -279,20 +262,19 @@ namespace Asv.Drones.Sdr.Core
                     return;
                 }
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.TryGetEntry(recordId, out var entry) == false)
+                if (_store.TryGetEntry(recordId, out var entry) == false || entry == null)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
+                    return;
                 }
-                using (var reader = _store.OpenOrCreateFile(entry))
+                using var reader = _store.Open(entry.Id);
+                var items = reader.GetTagIds(req.Skip, req.Count).ToArray();
+                await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Length);
+                foreach (var tag in items)
                 {
-                    var items = reader.GetTagIds(req.Skip, req.Count).ToArray();
-                    await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Length);
-                    foreach (var tag in items)
-                    {
-                        await _svc.Server.SdrEx.Base.SendRecordTag(_=>reader.WriteTag(tag,_));
-                        await Task.Delay(_config.RecordSendDelayMs);
-                    }
+                    await _svc.Server.SdrEx.Base.SendRecordTag(_=>reader.ReadTag(tag,_));
+                    await Task.Delay(_config.RecordSendDelayMs);
                 }
             }
             catch (Exception e)
@@ -329,7 +311,7 @@ namespace Asv.Drones.Sdr.Core
                 await Task.Delay(_config.RecordSendDelayMs);
                 foreach (var item in items)
                 {
-                    using (var reader = _store.OpenOrCreateFile(item))
+                    using (var reader = _store.Open(item.Id))
                     {
                         await _svc.Server.SdrEx.Base.SendRecord(reader.Write);
                     }
@@ -430,15 +412,31 @@ namespace Asv.Drones.Sdr.Core
             {
                 _.CustomMode = (uint)mode;
             });    
+            _svc.Server.StatusText.Info($"Set mode '{mode:G}'({frequencyHz:N} Hz)");
             return MavResult.MavResultAccepted;
         }
 
         private Task<MavResult> StopRecord(CancellationToken token)
         {
             if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
+
+            string name = null;
+            uint recCount = 0;
+            uint recDurationSec = 0;
             lock (_sync)
             {
                 if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
+                _recordStopwatch.Stop();
+                _currentRecord.EditMetadata(x =>
+                {
+                    name = MavlinkTypesHelper.GetString(x.Info.RecordName);
+                    recDurationSec = x.Info.DurationSec = (uint)_recordStopwatch.Elapsed.TotalSeconds;
+                    // ReSharper disable once AccessToDisposedClosure
+                    x.Info.Size = (uint)_currentRecord.ByteSize;
+                    // ReSharper disable once AccessToDisposedClosure
+                    recCount = x.Info.DataCount = _currentRecord.Count;
+                    x.Info.TagCount = (ushort)x.Tags.Count;
+                });
                 _currentRecord.Dispose();
                 _currentRecord = null;
                 _currentRecordId = Guid.Empty;
@@ -449,6 +447,9 @@ namespace Asv.Drones.Sdr.Core
                 Guid.Empty.TryWriteBytes(_.CurrentRecordGuid);
                 MavlinkTypesHelper.SetString(_.CurrentRecordName,string.Empty);
             });
+            Debug.Assert(name!=null);
+            var duration = TimeSpan.FromSeconds(recDurationSec);
+            _svc.Server.StatusText.Info($"Rec stop '{name}' ({recCount}, {duration.TotalMinutes:F0}:{duration.Seconds})");
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
@@ -465,8 +466,17 @@ namespace Asv.Drones.Sdr.Core
             {
                 if (_currentRecord != null) return Task.FromResult(MavResult.MavResultAccepted);
                 _currentRecordId = Guid.NewGuid();
+                _recordStopwatch.Restart();
                 Interlocked.Exchange(ref _recordCounter, 0);
-                _currentRecord = _store.OpenOrCreateFile(_currentRecordId,  recordName,_store.RootFolderId);
+                _currentRecord = _store.Create(_currentRecordId,  _store.RootFolderId, _ =>
+                {
+                    _.Info.DataType = _currentMode.Mode;
+                    _.Info.CreatedUnixUs = MavlinkTypesHelper.ToUnixTimeUs(_time.Now);
+                    MavlinkTypesHelper.SetGuid(_.Info.RecordGuid, _currentRecordId);
+                    MavlinkTypesHelper.SetString(_.Info.RecordName,recordName);
+                    _.Info.Frequency = _currentMode.FrequencyHz;
+                });
+                _svc.Server.StatusText.Info($"Rec start '{recordName}'");
             }
             _svc.Server.SdrEx.Base.Set(_ =>
             {
@@ -493,7 +503,11 @@ namespace Asv.Drones.Sdr.Core
                 }
                 try
                 {
-                    _currentRecord.WriteTag(Guid.NewGuid(),_currentRecordId, type, name, value);
+                    var hashString = $"{name}{_currentRecordId:N}";
+                    var tagId = new Guid(_md5.ComputeHash(Encoding.ASCII.GetBytes(hashString)));
+                    
+                    _svc.Server.StatusText.Debug($"Add tag '{name}'");
+                    _currentRecord.WriteTag(tagId,_currentRecordId, type, name, value);
                     return Task.FromResult(MavResult.MavResultAccepted);
                 }
                 catch (Exception e)
