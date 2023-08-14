@@ -4,28 +4,20 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <Configurations>Debug;Release;DebugPlugins;DebugLibs</Configurations>
+        <Configurations>Debug;Release;DebugLibs</Configurations>
     </PropertyGroup>
 
-    <Choose>
-        <When Condition="'$(Configuration)' == 'DebugLibs'">
-            <ItemGroup>
-                <ProjectReference Include="..\..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj" />
-            </ItemGroup>
-        </When>
-        <Otherwise>
-            <ItemGroup>
-                <PackageReference Include="Asv.Mavlink" Version="3.3.2" />
-            </ItemGroup>
-        </Otherwise>
-    </Choose>
     
     <ItemGroup>
       <PackageReference Include="Asv.Cfg" Version="1.10.2" />
       <PackageReference Include="Asv.Common" Version="1.10.2" />
-      
+        <PackageReference Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'"  Include="Asv.Mavlink" Version="$(AsvMavlinkVersion)" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
       <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Condition="'$(Configuration)' == 'DebugLibs'" Include="..\..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj" />
     </ItemGroup>
 
 

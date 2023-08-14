@@ -11,24 +11,11 @@
     <PropertyGroup Condition="'$(Configuration)' == 'DebugPlugins'">
         <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
     </PropertyGroup>
-    <Choose>
-        <When Condition="'$(Configuration)' == 'DebugPlugins'">
-            <ItemGroup>
-                <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
-            </ItemGroup>
-        </When>
-    </Choose>
 
     <PropertyGroup Condition="'$(Configuration)' == 'DebugLibs'">
         <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
     </PropertyGroup>
-    <Choose>
-        <When Condition="'$(Configuration)' == 'DebugLibs'">
-            <ItemGroup>
-                <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
-            </ItemGroup>
-        </When>
-    </Choose>
+    
     
     <ItemGroup>
         <PackageReference Include="Asv.Cfg" Version="1.10.2" />
@@ -44,6 +31,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Asv.Drones.Sdr.Core\Asv.Drones.Sdr.Core.csproj" />
       <ProjectReference Include="..\Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj" />
+        <ProjectReference Condition="'$(Configuration)' == 'DebugPlugins' Or '$(Configuration)' == 'DebugLibs'" Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
     </ItemGroup>
 
     <ItemGroup>
