@@ -5,24 +5,29 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;DebugPlugins;DebugLibs</Configurations>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <DefineConstants>TRACE;PROPRIETARY</DefineConstants>
+    <PropertyGroup Condition="'$(Configuration)' == 'DebugPlugins'">
+        <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
     </PropertyGroup>
-
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <DefineConstants>TRACE;PROPRIETARY</DefineConstants>
-    </PropertyGroup>
-
     <Choose>
-        <When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch( $(DefineConstants), '^(.*;)*PROPRIETARY(;.*)*$'))">
-            <!-- When PROPRIETARY is defined. -->
+        <When Condition="'$(Configuration)' == 'DebugPlugins'">
             <ItemGroup>
                 <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
             </ItemGroup>
         </When>
-        <!-- other conditions -->
+    </Choose>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'DebugLibs'">
+        <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
+    </PropertyGroup>
+    <Choose>
+        <When Condition="'$(Configuration)' == 'DebugLibs'">
+            <ItemGroup>
+                <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
+            </ItemGroup>
+        </When>
     </Choose>
     
     <ItemGroup>

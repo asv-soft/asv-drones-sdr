@@ -57,7 +57,7 @@ internal class SdrService : DisposableOnceWithCancel
             yield return typeof(VirtualAnalyzerLlz).Assembly;   // [Asv.Drones.Sdr.Virtual]
             
             // This section is for private plugins
-#if PROPRIETARY
+#if INCLUDE_PLUGINS
             yield return typeof(Lms.LmsModule).Assembly;        // [Asv.Drones.Sdr.Lms]
 #endif
         }
