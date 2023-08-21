@@ -34,7 +34,7 @@ namespace Asv.Drones.Sdr.Core
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
         private readonly ITimeService _time;
-        private readonly IListDataStore<AsvSdrRecordFileMetadata, Guid> _store;
+        private readonly IHierarchicalStore<Guid,IListDataFile<AsvSdrRecordFileMetadata>> _store;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private IWorkMode _currentMode;
         private readonly DeviceModeSwitcherConfig _config;
@@ -47,11 +47,12 @@ namespace Asv.Drones.Sdr.Core
         private int _errorRecordTick;
         
         private readonly object _sync = new();
-        private ICachedFileWithRefCounter<AsvSdrRecordFileMetadata>? _currentRecord;
+        
         private Guid _currentRecordId;
         private uint _recordCounter;
         private readonly Stopwatch _recordStopwatch = new();
         private readonly MD5 _md5 = MD5.Create();
+        private ICachedFile<Guid,IListDataFile<AsvSdrRecordFileMetadata>>? _currentRecord;
 
 
         [ImportingConstructor]
@@ -62,7 +63,11 @@ namespace Asv.Drones.Sdr.Core
             _container = container ?? throw new ArgumentNullException(nameof(container));
             _time = time ?? throw new ArgumentNullException(nameof(time));
             _config = config.Get<DeviceModeSwitcherConfig>();
-            _store = new ListDataStore<AsvSdrRecordFileMetadata, Guid>(_config.SdrRecordStoreFolder, AsvSdrHelper.StoreFormat,AsvSdrHelper.FileFormat, TimeSpan.FromMilliseconds(_config.FileCacheTimeMs))
+            if (Directory.Exists(_config.SdrRecordStoreFolder) == false)
+            {
+                Directory.CreateDirectory(_config.SdrRecordStoreFolder);
+            }
+            _store = new AsvSdrStore(_config.SdrRecordStoreFolder, TimeSpan.FromMilliseconds(_config.FileCacheTimeMs))
                 .DisposeItWith(Disposable);
             _md5.DisposeItWith(Disposable);
             foreach (var item in Enum.GetValues(typeof(AsvSdrCustomMode)).Cast<AsvSdrCustomMode>())
@@ -230,17 +235,9 @@ namespace Asv.Drones.Sdr.Core
                 }*/
                 var recId = new Guid(req.RecordGuid);
                 
-                if (_store.DeleteFile(recId))
-                {
-                    _svc.Server.StatusText.Info($"Delete {recId}");
-                    await _svc.Server.SdrEx.Base.SendRecordDeleteResponseSuccess(req);
-                }
-                else
-                {   
-                    _svc.Server.StatusText.Info($"Rec not found {recId}");
-                    await _svc.Server.SdrEx.Base.SendRecordDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
-                    
-                }
+                _store.DeleteFile(recId);
+                _svc.Server.StatusText.Info($"Delete {recId}");
+                await _svc.Server.SdrEx.Base.SendRecordDeleteResponseSuccess(req);
                 
             }
             catch (Exception e)
@@ -494,13 +491,14 @@ namespace Asv.Drones.Sdr.Core
                 _currentRecordId = Guid.NewGuid();
                 _recordStopwatch.Restart();
                 Interlocked.Exchange(ref _recordCounter, 0);
-                _currentRecord = _store.Create(_currentRecordId,  _store.RootFolderId, _ =>
+                _currentRecord = _store.Create(_currentRecordId, recordName, _store.RootFolderId);
+                    _currentRecord.File.EditMetadata(metadata=>
                 {
-                    _.Info.DataType = _currentMode.Mode;
-                    _.Info.CreatedUnixUs = MavlinkTypesHelper.ToUnixTimeUs(_time.Now);
-                    MavlinkTypesHelper.SetGuid(_.Info.RecordGuid, _currentRecordId);
-                    MavlinkTypesHelper.SetString(_.Info.RecordName,recordName);
-                    _.Info.Frequency = _currentMode.FrequencyHz;
+                    metadata.Info.DataType = _currentMode.Mode;
+                    metadata.Info.CreatedUnixUs = MavlinkTypesHelper.ToUnixTimeUs(_time.Now);
+                    MavlinkTypesHelper.SetGuid(metadata.Info.RecordGuid, _currentRecordId);
+                    MavlinkTypesHelper.SetString(metadata.Info.RecordName,recordName);
+                    metadata.Info.Frequency = _currentMode.FrequencyHz;
                 });
                 _svc.Server.StatusText.Info($"Rec start '{recordName}'");
             }

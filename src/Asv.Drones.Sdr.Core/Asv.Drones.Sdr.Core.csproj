@@ -9,8 +9,8 @@
 
     
     <ItemGroup>
-      <PackageReference Include="Asv.Cfg" Version="1.10.2" />
-      <PackageReference Include="Asv.Common" Version="1.10.2" />
+      <PackageReference Include="Asv.Cfg" Version="$(AsvCommonVersion)" />
+      <PackageReference Include="Asv.Common" Version="$(AsvCommonVersion)" />
         <PackageReference Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'"  Include="Asv.Mavlink" Version="$(AsvMavlinkVersion)" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
       <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
