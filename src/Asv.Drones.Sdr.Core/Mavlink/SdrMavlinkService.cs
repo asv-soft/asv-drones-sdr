@@ -1,9 +1,11 @@
 ﻿using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using System.Reactive.Concurrency;
+using System.Reflection;
 using Asv.Cfg;
 using Asv.Common;
 using Asv.Mavlink;
+using Asv.Mavlink.V2.Common;
 using NLog;
 
 namespace Asv.Drones.Sdr.Core.Mavlink;
@@ -66,6 +68,11 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
                 new MavParamCStyleEncoding(), config)
             .DisposeItWith(Disposable);
         Server.Start();
+        
+        Thread.Sleep(100);
+
+        var version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+        Server.StatusText.Log(MavSeverity.MavSeverityInfo, version);
     }
 
     public IMavlinkRouter Router { get; }
