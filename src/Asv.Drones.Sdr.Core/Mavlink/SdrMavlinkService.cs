@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Reflection;
 using Asv.Cfg;
 using Asv.Common;
@@ -69,10 +70,11 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             .DisposeItWith(Disposable);
         Server.Start();
         
-        Thread.Sleep(100);
-
-        var version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-        Server.StatusText.Log(MavSeverity.MavSeverityInfo, version);
+        Observable.Timer(TimeSpan.FromSeconds(5)).Subscribe(_ =>
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            Server.StatusText.Log(MavSeverity.MavSeverityInfo, version);
+        });
     }
 
     public IMavlinkRouter Router { get; }
