@@ -21,6 +21,7 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload
         GlobalPositionIntPayload? position)
     {
         payload.DataIndex = dataIndex;
+        payload.TotalFreq = FrequencyHz;
         record.TryWriteBytes(payload.RecordGuid);
         // GNSS
         if (gnss != null)

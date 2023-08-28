@@ -21,6 +21,7 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
         GlobalPositionIntPayload? position)
     {
         payload.DataIndex = dataIndex;
+        payload.TotalFreq = FrequencyHz;
         record.TryWriteBytes(payload.RecordGuid);
         // GNSS
         if (gnss != null)
