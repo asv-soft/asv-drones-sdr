@@ -4,14 +4,26 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;DebugLibs</Configurations>
+        <AssemblyVersion>0.1.0</AssemblyVersion>
+        <FileVersion>0.1.0</FileVersion>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
+
+
+
     <ItemGroup>
-      <PackageReference Include="Asv.Cfg" Version="1.11.0" />
-      <PackageReference Include="Asv.Common" Version="1.11.0" />
-      <PackageReference Include="Asv.Mavlink" Version="3.3.5-alpha-05" />
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-      <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
+        <PackageReference Include="Asv.Cfg" Version="$(AsvCommonVersion)" />
+        <PackageReference Include="Asv.Common" Version="$(AsvCommonVersion)" />
+        <PackageReference Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleasePlugins'"  Include="Asv.Mavlink" Version="$(AsvMavlinkVersion)" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
     </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Condition="'$(Configuration)' == 'DebugLibs'" Include="..\..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj" />
+    </ItemGroup>
+
 
 </Project>

@@ -54,12 +54,12 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
 
     public AsvSdrCustomMode Mode { get; }
 
-    public void Fill(Guid writerRecordId, uint dataIndex, IPayload payload)
+    public void ReadData(Guid writerRecordId, uint dataIndex, IPayload payload)
     {
         InternalFill((TPayload)payload,writerRecordId, dataIndex, _gnssSource.Gnss.Value, _gnssSource.Attitude.Value, _gnssSource.Position.Value);
     }
 
     protected abstract void InternalFill(TPayload payload, Guid record, uint dataIndex,
-        GpsRawIntPayload gnss, AttitudePayload attitude, GlobalPositionIntPayload position);
+        GpsRawIntPayload? gnss, AttitudePayload? attitude, GlobalPositionIntPayload? position);
 }
 

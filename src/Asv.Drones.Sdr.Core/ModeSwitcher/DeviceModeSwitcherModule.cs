@@ -4,6 +4,8 @@ using System.ComponentModel.Composition.Primitives;
 using System.Diagnostics;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Asv.Cfg;
 using Asv.Common;
 using Asv.Drones.Sdr.Core.Mavlink;
@@ -11,15 +13,16 @@ using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
 using Asv.Mavlink.V2.Common;
 using NLog;
+using AsvSdrHelper = Asv.Mavlink.AsvSdrHelper;
 
 namespace Asv.Drones.Sdr.Core
 {
 
     public class DeviceModeSwitcherConfig
     {
-        public int RecordSendDelayMs { get; set; } = 50;
-        public int StatisticUpdateMs { get; set; } = 30_000;
-        public int MaxRecordSendPerRequest { get; set; } = 500;
+        public int RecordSendDelayMs { get; set; } = 30;
+        public string SdrRecordStoreFolder { get; set; } = "records";
+        public int FileCacheTimeMs { get; set; } = 5_000;
     }
     
     [ExportModule(Name,WorkModeCheckConfigModule.Name)]
@@ -30,10 +33,10 @@ namespace Asv.Drones.Sdr.Core
 
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
-        private readonly IRecordStore _store;
+        private readonly ITimeService _time;
+        private readonly IHierarchicalStore<Guid,IListDataFile<AsvSdrRecordFileMetadata>> _store;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private IWorkMode _currentMode;
-        private int _isBusy;
         private readonly DeviceModeSwitcherConfig _config;
         private Timer? _timer;
         private double _recordIsBusy;
@@ -44,18 +47,29 @@ namespace Asv.Drones.Sdr.Core
         private int _errorRecordTick;
         
         private readonly object _sync = new();
-        private IRecordDataWriter? _currentRecord;
+        
+        private Guid _currentRecordId;
         private uint _recordCounter;
+        private readonly Stopwatch _recordStopwatch = new();
+        private readonly MD5 _md5 = MD5.Create();
+        private ICachedFile<Guid,IListDataFile<AsvSdrRecordFileMetadata>>? _currentRecord;
+
 
         [ImportingConstructor]
-        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IRecordStore store, IConfiguration config)
+        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config, ITimeService time)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _container = container ?? throw new ArgumentNullException(nameof(container));
-            _store = store ?? throw new ArgumentNullException(nameof(store));
+            _time = time ?? throw new ArgumentNullException(nameof(time));
             _config = config.Get<DeviceModeSwitcherConfig>();
-           
+            if (Directory.Exists(_config.SdrRecordStoreFolder) == false)
+            {
+                Directory.CreateDirectory(_config.SdrRecordStoreFolder);
+            }
+            _store = new AsvSdrStore(_config.SdrRecordStoreFolder, TimeSpan.FromMilliseconds(_config.FileCacheTimeMs))
+                .DisposeItWith(Disposable);
+            _md5.DisposeItWith(Disposable);
             foreach (var item in Enum.GetValues(typeof(AsvSdrCustomMode)).Cast<AsvSdrCustomMode>())
             {
                 var items = _container.GetExports<IWorkMode,IWorkModeMetadata>(ExportModeAttribute.GetContractName(item)).ToArray();
@@ -78,20 +92,6 @@ namespace Asv.Drones.Sdr.Core
             _currentMode = IdleWorkMode.Instance;
             
             _recordTickElapsedTime.PushFront(0);
-            if (_config.StatisticUpdateMs > 0)
-            {
-                Observable.Timer(TimeSpan.FromMilliseconds(_config.StatisticUpdateMs), TimeSpan.FromMilliseconds(_config.StatisticUpdateMs))
-                .Subscribe(_ =>
-                {
-                    var recordTick = _recordTickElapsedTime.Average();
-                    _svc.Server.SdrEx.Base.Set(_ =>
-                    {
-                        _svc.Server.StatusText.Debug($"Rec:{recordTick:F0}ms, skipped: {_skippedRecordTick}, error: {_errorRecordTick}");
-                    });
-                }).DisposeItWith(Disposable);
-                
-            }
-
             _svc.Server.SdrEx.StartRecord = StartRecord;
             _svc.Server.SdrEx.StopRecord = StopRecord;  
             _svc.Server.SdrEx.CurrentRecordSetTag = CurrentRecordSetTag;
@@ -109,96 +109,99 @@ namespace Asv.Drones.Sdr.Core
             Disposable.AddAction(() =>
             {
                 _timer?.Dispose();
-                _currentRecord?.Dispose();
                 _currentMode.Dispose();
             });
         }
 
         private async void OnRecordDataRequest(AsvSdrRecordDataRequestPayload req)
         {
+            Logger.Trace($"<={nameof(OnRecordDataRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
             // check if record is started
-            if (_currentRecord != null)
+            /*if (_currentRecord != null)
             {
+                Logger.Warn($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>ERROR:RECORD IN PROGRESS");
                 _svc.Server.StatusText.Error("Stop record before ane request");
                 await _svc.Server.SdrEx.Base.SendRecordDataResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 return;
-            }
+            }*/
             try
             {
-                if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
+                
+                /*if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
                 {
+                    Logger.Error($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>ERROR:BUSY");
                     _svc.Server.StatusText.Error("Request in progress");
                     await _svc.Server.SdrEx.Base.SendRecordDataResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
-                }
+                }*/
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetFile(recordId, out var entry) == false)
                 {
+                    Logger.Error($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>ERROR:NOT EXIST");
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordDataResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
+                    return;
                 }
+
                 
-                using (var reader = _store.OpenRead(recordId))
+                using var reader = _store.Open(entry.Id);
+                var count = reader.File.GetItemsCount(req.Skip, req.Count);
+                var metadata = reader.File.ReadMetadata();
+                Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS:BEGIN SEND({count})");
+                await _svc.Server.SdrEx.Base.SendRecordDataResponseSuccess(req,count);
+                for (var i = req.Skip; i < req.Skip + count; i++)
                 {
-                    var count = reader.GetRecordsCount(req.Skip, req.Count);
-                    
-                    await _svc.Server.SdrEx.Base.SendRecordDataResponseSuccess(req,count);
-                    for (var i = req.Skip; i < req.Skip + count; i++)
-                    {
-                        var ii = i;
-                        await _svc.Server.SdrEx.Base.SendRecordData(reader.Mode,_=>reader.Fill(ii,_));
-                        await Task.Delay(_config.RecordSendDelayMs);
-                    }
+                    await Task.Delay(_config.RecordSendDelayMs);
+                    var ii = i;
+                    Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS:DATA({ii})");
+                    await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>reader.File.Read(ii,x));
                 }
-               
+                Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS: END SEND({count})");
             }
             catch (Exception e)
             {
-                _svc.Server.StatusText.Error("Request tags error");
+                Logger.Error($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>ERROR:UNHANDLED");
                 _svc.Server.StatusText.Error(e.Message);
                 await _svc.Server.SdrEx.Base.SendRecordDataResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
             }
-            finally
+            /*finally
             {
                 Interlocked.Exchange(ref _isBusy,0);
-            }
+            }*/
         }
         private async void OnRecordTagDeleteRequest(AsvSdrRecordTagDeleteRequestPayload req)
         {
             // check if record is started
-            if (_currentRecord != null)
+            /*if (_currentRecord != null)
             {
                 _svc.Server.StatusText.Error("Stop record before ane request");
                 await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 return;
-            }
+            }*/
             try
             {
-                if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
+                /*if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
                 {
                     _svc.Server.StatusText.Error("Request in progress");
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
-                }
+                }*/
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetFile(recordId, out var entry) == false)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
                 var tagId = new Guid(req.TagGuid);
-                using (var reader = _store.OpenRead(recordId))
+                using var reader = _store.Open(entry.Id);
+                if (reader.File.DeleteTag(tagId))
                 {
-                    if (reader.DeleteTag(tagId))
-                    {
-                        await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseSuccess(req);
-                    }
-                    else
-                    {
-                        _svc.Server.StatusText.Error("Tag not exist");
-                        await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
-                    }
-                    
+                    await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseSuccess(req);
+                }
+                else
+                {
+                    _svc.Server.StatusText.Error("Tag not exist");
+                    await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
             }
             catch (Exception e)
@@ -207,41 +210,34 @@ namespace Asv.Drones.Sdr.Core
                 _svc.Server.StatusText.Error(e.Message);
                 await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
             }
-            finally
+            /*finally
             {
                 Interlocked.Exchange(ref _isBusy,0);
-            }
+            }*/
         }
         private async void OnRecordDeleteRequest(AsvSdrRecordDeleteRequestPayload req)
         {
             // check if record is started
-            if (_currentRecord != null)
+            /*if (_currentRecord != null)
             {
+                Logger.Warn($"=>{nameof(OnRecordDeleteRequest)}[{req.RequestId:000}]=>ERROR:RECORD IN PROGRESS");
                 _svc.Server.StatusText.Error("Stop record before ane request");
                 await _svc.Server.SdrEx.Base.SendRecordDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 return;
-            }
+            }*/
             try
             {
-                if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
+                /*if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
                 {
                     _svc.Server.StatusText.Error("Request in progress");
                     await _svc.Server.SdrEx.Base.SendRecordDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
-                }
+                }*/
                 var recId = new Guid(req.RecordGuid);
                 
-                if (_store.DeleteRecord(recId))
-                {
-                    _svc.Server.StatusText.Info($"Delete {recId}");
-                    await _svc.Server.SdrEx.Base.SendRecordDeleteResponseSuccess(req);
-                }
-                else
-                {   
-                    _svc.Server.StatusText.Info($"Rec not found {recId}");
-                    await _svc.Server.SdrEx.Base.SendRecordDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
-                    
-                }
+                _store.DeleteFile(recId);
+                _svc.Server.StatusText.Info($"Delete {recId}");
+                await _svc.Server.SdrEx.Base.SendRecordDeleteResponseSuccess(req);
                 
             }
             catch (Exception e)
@@ -250,97 +246,112 @@ namespace Asv.Drones.Sdr.Core
                 _svc.Server.StatusText.Error(e.Message);
                 await _svc.Server.SdrEx.Base.SendRecordDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
             }
-            finally
+            /*finally
             {
+                
                 Interlocked.Exchange(ref _isBusy,0);
-            }
+            }*/
         }
         private async void OnRecordTagRequest(AsvSdrRecordTagRequestPayload req)
         {
+            Logger.Trace($"<={nameof(OnRecordTagRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
             // check if record is started
-            if (_currentRecord != null)
+            /*if (_currentRecord != null)
             {
+                Logger.Warn($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>ERROR:RECORD IN PROGRESS");
                 _svc.Server.StatusText.Error("Stop record before ane request");
                 await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 return;
-            }
+            }*/
             try
             {
-                if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
+                /*if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
                 {
                     _svc.Server.StatusText.Error("Request in progress");
+                    Logger.Error($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>ERROR:BUSY");
                     await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
-                }
+                }*/
                 var recordId = new Guid(req.RecordGuid);
-                if (_store.Exist(recordId) == false)
+                if (_store.TryGetEntry(recordId, out var entry) == false || entry == null)
                 {
                     _svc.Server.StatusText.Error("Record not exist");
+                    Logger.Error($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>ERROR:NOT EXIST");
                     await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
+                    return;
                 }
-                using (var reader = _store.OpenRead(recordId))
+                using var reader = _store.Open(entry.Id);
+                var items = reader.File.GetTagIds(req.Skip, req.Count).ToArray();
+                await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Length);
+                Logger.Trace($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>SUCCESS:COUNT({items.Length})");
+                foreach (var tag in items)
                 {
-                    var items = reader.GetTags(req.Skip, req.Count);
-                    await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Count);
-                    foreach (var tag in items)
+                    await Task.Delay(_config.RecordSendDelayMs);
+                    await _svc.Server.SdrEx.Base.SendRecordTag(_=>
                     {
-                        await _svc.Server.SdrEx.Base.SendRecordTag(_=>reader.Fill(tag,_));
-                        await Task.Delay(_config.RecordSendDelayMs);
-                    }
+                        reader.File.ReadTag(tag, _);
+                        Logger.Trace($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>SUCCESS:TAG({MavlinkTypesHelper.GetString(_.TagName)})");
+                    });
                 }
             }
             catch (Exception e)
             {
+                Logger.Error($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>ERROR:UNHANDLED");
                 _svc.Server.StatusText.Error("Request tags error");
                 _svc.Server.StatusText.Error(e.Message);
                 await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
             }
-            finally
+            /*finally
             {
                 Interlocked.Exchange(ref _isBusy,0);
-            }
+            }*/
         }
         private async void OnRecordRequest(AsvSdrRecordRequestPayload req)
         {
+            Logger.Trace($"<={nameof(OnRecordRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
             // check if record is started
-            if (_currentRecord != null)
+            /*if (_currentRecord != null)
             {
-                _svc.Server.StatusText.Error("Stop record before ane request");
+                Logger.Trace($"=>{nameof(OnRecordRequest)}[{req.RequestId:000}]=>ERROR:REC IN PROGRESS");
+                _svc.Server.StatusText.Error("Stop record before any request");
                 await _svc.Server.SdrEx.Base.SendRecordResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 return;
-            }
+            }*/
             
             try
             {
-                if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
+                /*if (Interlocked.CompareExchange(ref _isBusy,1,0) != 0)
                 {
+                    Logger.Trace($"=>{nameof(OnRecordRequest)}[{req.RequestId:000}]=>ERROR:BUSY");
                     _svc.Server.StatusText.Error("Request in progress");
                     await _svc.Server.SdrEx.Base.SendRecordResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckInProgress);
                     return;
-                }
-                var items = _store.GetRecords(req.Skip, req.Count);
-                await _svc.Server.SdrEx.Base.SendRecordResponseSuccess(req, (ushort)items.Count);
-                await Task.Delay(_config.RecordSendDelayMs);
+                }*/
+                var items = _store.GetFiles().Skip(req.Skip).Take(req.Count).ToArray();
+                Logger.Trace($"=>{nameof(OnRecordRequest)}[{req.RequestId:000}]=>SUCCESS:COUNT({items.Length})");
+                await _svc.Server.SdrEx.Base.SendRecordResponseSuccess(req, (ushort)items.Length);
                 foreach (var item in items)
                 {
-                    using (var reader = _store.OpenRead(item))
-                    {
-                        await _svc.Server.SdrEx.Base.SendRecord(reader.Fill);
-                    }
                     //delay between sending records
                     await Task.Delay(_config.RecordSendDelayMs);
+                    using var reader = _store.Open(item.Id);
+                    await _svc.Server.SdrEx.Base.SendRecord(_=>
+                    {
+                        reader.File.Write(_);
+                        Logger.Trace($"=>{nameof(OnRecordRequest)}[{req.RequestId:000}]=>SUCCESS:REC({MavlinkTypesHelper.GetString(_.RecordName)})");
+                    });
                 }
             }
             catch (Exception e)
             {
-                _svc.Server.StatusText.Error("Request record error");
+                Logger.Error($"=>{nameof(OnRecordRequest)}[{req.RequestId:000}]=>ERROR:UNHANDLED");
                 _svc.Server.StatusText.Error(e.Message);
                 await _svc.Server.SdrEx.Base.SendRecordResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
             }
-            finally
+            /*finally
             {
                 Interlocked.Exchange(ref _isBusy,0);
-            }
+            }*/
         }
         
         private async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,int sendingThinningRatio, CancellationToken cancel)
@@ -424,20 +435,44 @@ namespace Asv.Drones.Sdr.Core
             {
                 _.CustomMode = (uint)mode;
             });    
+            _svc.Server.StatusText.Info($"Set mode '{mode:G}'({frequencyHz:N} Hz)");
             return MavResult.MavResultAccepted;
         }
 
         private Task<MavResult> StopRecord(CancellationToken token)
         {
             if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
+
+            string name = null;
+            uint recCount = 0;
+            uint recDurationSec = 0;
             lock (_sync)
             {
                 if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
+                _recordStopwatch.Stop();
+                _currentRecord.File.EditMetadata(x =>
+                {
+                    name = MavlinkTypesHelper.GetString(x.Info.RecordName);
+                    recDurationSec = x.Info.DurationSec = (uint)_recordStopwatch.Elapsed.TotalSeconds;
+                    // ReSharper disable once AccessToDisposedClosure
+                    x.Info.Size = (uint)_currentRecord.File.ByteSize;
+                    // ReSharper disable once AccessToDisposedClosure
+                    recCount = x.Info.DataCount = _currentRecord.File.Count;
+                    x.Info.TagCount = (ushort)x.Tags.Count;
+                });
                 _currentRecord.Dispose();
                 _currentRecord = null;
+                _currentRecordId = Guid.Empty;
                 Interlocked.Exchange(ref _recordCounter, 0);
             }
-            _svc.Server.SdrEx.Base.Set(_ => Guid.Empty.TryWriteBytes(_.CurrentRecordGuid));
+            _svc.Server.SdrEx.Base.Set(_ =>
+            {
+                Guid.Empty.TryWriteBytes(_.CurrentRecordGuid);
+                MavlinkTypesHelper.SetString(_.CurrentRecordName,string.Empty);
+            });
+            Debug.Assert(name!=null);
+            var duration = TimeSpan.FromSeconds(recDurationSec);
+            _svc.Server.StatusText.Info($"Rec stop '{name}' ({recCount}, {duration.TotalMinutes:F0}:{duration.Seconds})");
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
@@ -445,7 +480,7 @@ namespace Asv.Drones.Sdr.Core
         {
             if (_currentMode.Mode == AsvSdrCustomMode.AsvSdrCustomModeIdle)
             {
-                _svc.Server.StatusText.Error("Need set work mode before start record");
+                _svc.Server.StatusText.Error("Set work mode before start record");
                 return Task.FromResult(MavResult.MavResultDenied);
             }
                 
@@ -453,9 +488,25 @@ namespace Asv.Drones.Sdr.Core
             lock (_sync)
             {
                 if (_currentRecord != null) return Task.FromResult(MavResult.MavResultAccepted);
-                _currentRecord = _store.OpenWrite(recordName, _currentMode.Mode, _currentMode.FrequencyHz);
+                _currentRecordId = Guid.NewGuid();
+                _recordStopwatch.Restart();
+                Interlocked.Exchange(ref _recordCounter, 0);
+                _currentRecord = _store.Create(_currentRecordId, recordName, _store.RootFolderId);
+                    _currentRecord.File.EditMetadata(metadata=>
+                {
+                    metadata.Info.DataType = _currentMode.Mode;
+                    metadata.Info.CreatedUnixUs = MavlinkTypesHelper.ToUnixTimeUs(_time.Now);
+                    MavlinkTypesHelper.SetGuid(metadata.Info.RecordGuid, _currentRecordId);
+                    MavlinkTypesHelper.SetString(metadata.Info.RecordName,recordName);
+                    metadata.Info.Frequency = _currentMode.FrequencyHz;
+                });
+                _svc.Server.StatusText.Info($"Rec start '{recordName}'");
             }
-            _svc.Server.SdrEx.Base.Set(_ => _currentRecord.RecordId.TryWriteBytes(_.CurrentRecordGuid) );
+            _svc.Server.SdrEx.Base.Set(_ =>
+            {
+                _currentRecordId.TryWriteBytes(_.CurrentRecordGuid);
+                MavlinkTypesHelper.SetString(_.CurrentRecordName,recordName);
+            });
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
@@ -476,7 +527,11 @@ namespace Asv.Drones.Sdr.Core
                 }
                 try
                 {
-                    var guid = _currentRecord.SetTag(type, name, value);
+                    var hashString = $"{name}{_currentRecordId:N}";
+                    var tagId = new Guid(_md5.ComputeHash(Encoding.ASCII.GetBytes(hashString)));
+                    
+                    _svc.Server.StatusText.Debug($"Add tag '{name}'");
+                    _currentRecord.File.WriteTag(tagId,_currentRecordId, type, name, value);
                     return Task.FromResult(MavResult.MavResultAccepted);
                 }
                 catch (Exception e)
@@ -542,16 +597,16 @@ namespace Asv.Drones.Sdr.Core
                     // need save and send
                     await _svc.Server.SdrEx.Base.SendRecordData(_currentMode.Mode, payload =>
                     {
-                        mode.Fill(writer?.RecordId ?? Guid.Empty,dataIndex, payload);
-                        writer?.Write(dataIndex,_currentMode.Mode, payload);
+                        mode.ReadData(_currentRecordId,dataIndex, payload);
+                        writer?.File.Write(dataIndex, payload);
                     });
                 }
                 else
                 {
                     // need save only
                     var data = _svc.Server.SdrEx.Base.CreateRecordData(_currentMode.Mode);
-                    mode.Fill(writer?.RecordId ?? Guid.Empty,dataIndex, data.Payload);
-                    writer?.Write(dataIndex,_currentMode.Mode, data.Payload);
+                    mode.ReadData(_currentRecordId,dataIndex, data.Payload);
+                    writer?.File.Write(dataIndex, data.Payload);
                 }
             }
             catch (Exception e)

@@ -6,41 +6,73 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr.Core", "Asv.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr.Virtual", "Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj", "{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Proprietary", "Proprietary", "{28EF09CC-4DAA-4139-91EB-B9BAD07985A4}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{28EF09CC-4DAA-4139-91EB-B9BAD07985A4}"
+				ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+				EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Drones.Sdr.Lms", "..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj", "{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Sdr", "..\..\asv-sdr\src\Asv.Sdr\Asv.Sdr.csproj", "{E6369019-67AE-418F-BEE1-F137CDAEDDF5}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{D16B63CE-1B7B-439A-B894-7E2994BCC8F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asv.Mavlink", "..\..\asv-mavlink\src\Asv.Mavlink\Asv.Mavlink.csproj", "{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+		DebugPlugins|Any CPU = DebugPlugins|Any CPU
+		DebugLibs|Any CPU = DebugLibs|Any CPU
+		ReleasePlugins|Any CPU = ReleasePlugins|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.DebugPlugins|Any CPU.ActiveCfg = DebugPlugins|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.DebugPlugins|Any CPU.Build.0 = DebugPlugins|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.DebugLibs|Any CPU.ActiveCfg = DebugLibs|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.DebugLibs|Any CPU.Build.0 = DebugLibs|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.ReleasePlugins|Any CPU.ActiveCfg = ReleasePlugins|Any CPU
+		{FBF94233-0993-4CDB-80BA-674F982DDEEF}.ReleasePlugins|Any CPU.Build.0 = ReleasePlugins|Any CPU
 		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.DebugLibs|Any CPU.ActiveCfg = DebugLibs|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.DebugLibs|Any CPU.Build.0 = DebugLibs|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.DebugPlugins|Any CPU.ActiveCfg = Debug|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.DebugPlugins|Any CPU.Build.0 = Debug|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.ReleasePlugins|Any CPU.ActiveCfg = Release|Any CPU
+		{11A23E90-FFF0-4FD2-B788-055A04106BCD}.ReleasePlugins|Any CPU.Build.0 = Release|Any CPU
 		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.DebugLibs|Any CPU.ActiveCfg = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.DebugLibs|Any CPU.Build.0 = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.DebugPlugins|Any CPU.ActiveCfg = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.DebugPlugins|Any CPU.Build.0 = Debug|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.ReleasePlugins|Any CPU.ActiveCfg = Release|Any CPU
+		{B12A6DB5-A2CD-4AB7-8DCA-41A3F5D48967}.ReleasePlugins|Any CPU.Build.0 = Release|Any CPU
 		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E6369019-67AE-418F-BEE1-F137CDAEDDF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E6369019-67AE-418F-BEE1-F137CDAEDDF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E6369019-67AE-418F-BEE1-F137CDAEDDF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E6369019-67AE-418F-BEE1-F137CDAEDDF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.DebugPlugins|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.DebugPlugins|Any CPU.Build.0 = Debug|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.DebugLibs|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.DebugLibs|Any CPU.Build.0 = Debug|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.ReleasePlugins|Any CPU.ActiveCfg = Release|Any CPU
+		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2}.ReleasePlugins|Any CPU.Build.0 = Release|Any CPU
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}.DebugPlugins|Any CPU.ActiveCfg = Debug|Any CPU
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}.DebugPlugins|Any CPU.Build.0 = Debug|Any CPU
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}.DebugLibs|Any CPU.ActiveCfg = Debug|Any CPU
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C}.DebugLibs|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{7E01DBE3-7095-4E69-ABFE-494C4B98C3E2} = {28EF09CC-4DAA-4139-91EB-B9BAD07985A4}
-		{E6369019-67AE-418F-BEE1-F137CDAEDDF5} = {28EF09CC-4DAA-4139-91EB-B9BAD07985A4}
+		{279F2FFD-9E9B-47C0-9CB2-2893A5CA151C} = {D16B63CE-1B7B-439A-B894-7E2994BCC8F1}
 	EndGlobalSection
 EndGlobal

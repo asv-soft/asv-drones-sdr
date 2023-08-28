@@ -5,30 +5,29 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;DebugPlugins;DebugLibs;ReleasePlugins</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <DefineConstants>TRACE;PROPRIETARY</DefineConstants>
+    <PropertyGroup Condition="'$(Configuration)' == 'DebugPlugins'">
+        <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <DefineConstants>TRACE;PROPRIETARY</DefineConstants>
+    <PropertyGroup Condition="'$(Configuration)' == 'DebugLibs'">
+        <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
     </PropertyGroup>
 
-    <Choose>
-        <When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch( $(DefineConstants), '^(.*;)*PROPRIETARY(;.*)*$'))">
-            <!-- When PROPRIETARY is defined. -->
-            <ItemGroup>
-                <ProjectReference Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
-            </ItemGroup>
-        </When>
-        <!-- other conditions -->
-    </Choose>
-    
+    <PropertyGroup Condition=" '$(Configuration)' == 'ReleasePlugins' ">
+        <Optimize Condition=" '$(Optimize)' == '' ">true</Optimize>
+        <DefineConstants>TRACE;INCLUDE_PLUGINS</DefineConstants>
+    </PropertyGroup>
+
+
     <ItemGroup>
-        <PackageReference Include="Asv.Cfg" Version="1.11.0" />
-        <PackageReference Include="Asv.Common" Version="1.11.0" />
-        <PackageReference Include="Asv.IO" Version="1.11.0" />
+        <PackageReference Include="Asv.Cfg" Version="$(AsvCommonVersion)" />
+        <PackageReference Include="Asv.Common" Version="$(AsvCommonVersion)" />
+        <PackageReference Include="Asv.IO" Version="$(AsvCommonVersion)" />
+
         <PackageReference Include="NLog" Version="5.1.3" />
         <PackageReference Include="Spectre.Console" Version="0.46.0" />
         <PackageReference Include="Spectre.Console.Cli" Version="0.46.0" />
@@ -36,14 +35,15 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Asv.Drones.Sdr.Core\Asv.Drones.Sdr.Core.csproj" />
-      <ProjectReference Include="..\Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj" />
+        <ProjectReference Include="..\Asv.Drones.Sdr.Core\Asv.Drones.Sdr.Core.csproj" />
+        <ProjectReference Include="..\Asv.Drones.Sdr.Virtual\Asv.Drones.Sdr.Virtual.csproj" />
+        <ProjectReference Condition="'$(Configuration)' == 'DebugPlugins' Or '$(Configuration)' == 'DebugLibs' Or '$(Configuration)' == 'ReleasePlugins'" Include="..\..\..\asv-drones-sdr-lms\src\Asv.Drones.Sdr.Lms\Asv.Drones.Sdr.Lms.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="NLog.config">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="NLog.config">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>
