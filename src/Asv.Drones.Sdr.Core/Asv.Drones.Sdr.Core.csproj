@@ -7,13 +7,16 @@
         <Configurations>Debug;Release;DebugLibs</Configurations>
         <AssemblyVersion>0.1.0</AssemblyVersion>
         <FileVersion>0.1.0</FileVersion>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
+
+   
 
     
     <ItemGroup>
       <PackageReference Include="Asv.Cfg" Version="$(AsvCommonVersion)" />
       <PackageReference Include="Asv.Common" Version="$(AsvCommonVersion)" />
-        <PackageReference Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'"  Include="Asv.Mavlink" Version="$(AsvMavlinkVersion)" />
+        <PackageReference Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleasePlugins'"  Include="Asv.Mavlink" Version="$(AsvMavlinkVersion)" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
       <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
     </ItemGroup>
