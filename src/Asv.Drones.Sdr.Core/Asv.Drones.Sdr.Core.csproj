@@ -7,9 +7,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Asv.Cfg" Version="1.8.1" />
-      <PackageReference Include="Asv.Common" Version="1.8.1" />
-      <PackageReference Include="Asv.Mavlink" Version="3.2.5-alpha-18" />
+      <PackageReference Include="Asv.Cfg" Version="1.11.0" />
+      <PackageReference Include="Asv.Common" Version="1.11.0" />
+      <PackageReference Include="Asv.Mavlink" Version="3.3.5-alpha-05" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
       <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
     </ItemGroup>
