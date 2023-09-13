@@ -6,7 +6,7 @@ set projects=Asv.Drones.Sdr
 rem ====== projects ======
 
 rem install tool for update project version by git describe
-dotnet tool install -g dotnet-setversion
+rem dotnet tool install -g dotnet-setversion
 
 rem copy version to text file, then in variable
 git describe --abbrev=0 >./version.txt

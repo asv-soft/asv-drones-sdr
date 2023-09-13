@@ -59,6 +59,11 @@ internal class SdrService : DisposableOnceWithCancel
         var dir = Path.GetFullPath("./"); //Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         var cat = new DirectoryCatalog(dir, "Asv.Drones.Sdr.Plugin.*.dll");
         cat.Refresh();
+        Logger.Trace($"Search plugin in {cat.Path}");
+        foreach (var file in cat.LoadedFiles)
+        {
+            Logger.Info($"Found plugin '{Path.GetFileName(file)}'");
+        }
         yield return cat;
 
     }
