@@ -19,11 +19,10 @@ internal class SdrService : DisposableOnceWithCancel
     public SdrService(IConfiguration config)
     {
         var config1 = config ?? throw new ArgumentNullException(nameof(config));
-        var container = new CompositionContainer(new AggregateCatalog(
-                RegisterAssembly.Distinct().Select(_ => new AssemblyCatalog(_)).OfType<ComposablePartCatalog>()))
+        var container = new CompositionContainer(new AggregateCatalog(Catalogs().ToArray()), CompositionOptions.IsThreadSafe)
             .DisposeItWith(Disposable);
         var batch = new CompositionBatch();
-        batch.AddExportedValue<IConfiguration>(config1);
+        batch.AddExportedValue(config1);
         batch.AddExportedValue<IPacketSequenceCalculator>(new PacketSequenceCalculator());
         batch.AddExportedValue(container);
         container.Compose(batch);
@@ -48,18 +47,29 @@ internal class SdrService : DisposableOnceWithCancel
         }
         
     }
-    private IEnumerable<Assembly> RegisterAssembly
+    
+    private IEnumerable<ComposablePartCatalog> Catalogs()
+    {
+        foreach (var asm in Assemblies.Distinct().Select(assembly => new AssemblyCatalog(assembly)))
+        {
+            yield return asm;
+        }
+        
+        // Enable this feature to load plugins from folder
+        var dir = Path.GetFullPath("./"); //Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        var cat = new DirectoryCatalog(dir, "Asv.Drones.Sdr.Plugin.*.dll");
+        cat.Refresh();
+        yield return cat;
+
+    }
+    
+    private IEnumerable<Assembly> Assemblies
     {
         get
         {
             yield return GetType().Assembly;                    // [this]
             yield return typeof(IModule).Assembly;              // [Asv.Drones.Sdr.Core]
             yield return typeof(VirtualAnalyzerLlz).Assembly;   // [Asv.Drones.Sdr.Virtual]
-            
-            // This section is for private plugins
-#if INCLUDE_PLUGINS
-            yield return typeof(Lms.LmsModule).Assembly;        // [Asv.Drones.Sdr.Lms]
-#endif
         }
     }
 }

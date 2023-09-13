@@ -144,7 +144,7 @@ namespace Asv.Drones.Sdr.Core
                 }
 
                 
-                using var reader = _store.Open(entry.Id);
+                using var reader = _store.OpenFile(entry.Id);
                 var count = reader.File.GetItemsCount(req.Skip, req.Count);
                 var metadata = reader.File.ReadMetadata();
                 Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS:BEGIN SEND({count})");
@@ -193,7 +193,7 @@ namespace Asv.Drones.Sdr.Core
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                 }
                 var tagId = new Guid(req.TagGuid);
-                using var reader = _store.Open(entry.Id);
+                using var reader = _store.OpenFile(entry.Id);
                 if (reader.File.DeleteTag(tagId))
                 {
                     await _svc.Server.SdrEx.Base.SendRecordTagDeleteResponseSuccess(req);
@@ -280,7 +280,7 @@ namespace Asv.Drones.Sdr.Core
                     await _svc.Server.SdrEx.Base.SendRecordTagResponseFail(req, AsvSdrRequestAck.AsvSdrRequestAckFail);
                     return;
                 }
-                using var reader = _store.Open(entry.Id);
+                using var reader = _store.OpenFile(entry.Id);
                 var items = reader.File.GetTagIds(req.Skip, req.Count).ToArray();
                 await _svc.Server.SdrEx.Base.SendRecordTagResponseSuccess(req,(ushort)items.Length);
                 Logger.Trace($"=>{nameof(OnRecordTagRequest)}[{req.RequestId:000}]=>SUCCESS:COUNT({items.Length})");
@@ -334,7 +334,7 @@ namespace Asv.Drones.Sdr.Core
                 {
                     //delay between sending records
                     await Task.Delay(_config.RecordSendDelayMs);
-                    using var reader = _store.Open(item.Id);
+                    using var reader = _store.OpenFile(item.Id);
                     await _svc.Server.SdrEx.Base.SendRecord(_=>
                     {
                         reader.File.Write(_);
@@ -491,7 +491,7 @@ namespace Asv.Drones.Sdr.Core
                 _currentRecordId = Guid.NewGuid();
                 _recordStopwatch.Restart();
                 Interlocked.Exchange(ref _recordCounter, 0);
-                _currentRecord = _store.Create(_currentRecordId, recordName, _store.RootFolderId);
+                _currentRecord = _store.CreateFile(_currentRecordId, recordName, _store.RootFolderId);
                     _currentRecord.File.EditMetadata(metadata=>
                 {
                     metadata.Info.DataType = _currentMode.Mode;

@@ -1,6 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <AsvCommonVersion>1.11.0</AsvCommonVersion>
-    <AsvMavlinkVersion>3.3.5-alpha-05</AsvMavlinkVersion>
-  </PropertyGroup>
-</Project>
