@@ -564,10 +564,10 @@ namespace Asv.Drones.Sdr.Core
                 switch (action)
                 {
                     case AsvSdrSystemControlAction.AsvSdrSystemControlActionReboot:
-                        Process.Start("sudo reboot");
+                        Process.Start("/usr/bin/sudo", "/bin/systemctl reboot");
                         return Task.FromResult(MavResult.MavResultAccepted);
                     case AsvSdrSystemControlAction.AsvSdrSystemControlActionShutdown:
-                        Process.Start("sudo shutdown -h now");
+                        Process.Start("/usr/bin/sudo", "/bin/systemctl poweroff");
                         return Task.FromResult(MavResult.MavResultAccepted);
                     default:
                         return Task.FromResult(MavResult.MavResultFailed);
