@@ -18,12 +18,14 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     private readonly IGnssSource _gnssSource;
     private readonly TAnalyzer _analyser;
 
-    protected WorkModeBase(AsvSdrCustomMode mode, IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container)
+    protected WorkModeBase(AsvSdrCustomMode mode, IGnssSource gnssSource, ITimeService timeService,
+        IConfiguration configuration, CompositionContainer container)
     {
         if (configuration == null) throw new ArgumentNullException(nameof(configuration));
         if (container == null) throw new ArgumentNullException(nameof(container));
         Mode = mode;
         _gnssSource = gnssSource ?? throw new ArgumentNullException(nameof(gnssSource));
+        TimeService = timeService ?? throw new ArgumentNullException(nameof(timeService));
         var cfg = configuration.Get<WorkModeBaseConfig>();
         var implDict = cfg.Analyzers[mode.ToString("G")];
         if (implDict.Count == 0) throw new Exception($"Cfg: {typeof(TAnalyzer).Name} implementation not found");
@@ -43,6 +45,7 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     }
 
     protected TAnalyzer Analyzer => _analyser;
+    protected ITimeService TimeService { get; }
 
     public ulong FrequencyHz { get; private set; }
 

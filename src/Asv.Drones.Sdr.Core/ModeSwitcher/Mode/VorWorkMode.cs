@@ -1,6 +1,7 @@
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using Asv.Cfg;
+using Asv.Common;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
 using Asv.Mavlink.V2.Common;
@@ -12,8 +13,8 @@ namespace Asv.Drones.Sdr.Core;
 public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload>
 {
     [ImportingConstructor]
-    public VorWorkMode(IGnssSource gnssSource, IConfiguration configuration, CompositionContainer container) 
-        : base(AsvSdrCustomMode.AsvSdrCustomModeVor , gnssSource, configuration, container)
+    public VorWorkMode(IGnssSource gnssSource, ITimeService time, IConfiguration configuration, CompositionContainer container) 
+        : base(AsvSdrCustomMode.AsvSdrCustomModeVor , gnssSource, time, configuration, container)
     {
     }
     protected override void InternalFill(AsvSdrRecordDataVorPayload payload, Guid record, uint dataIndex,
@@ -26,6 +27,7 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
         // GNSS
         if (gnss != null)
         {
+            payload.TimeUnixUsec = MavlinkTypesHelper.ToUnixTimeUs(TimeService.Now);
             payload.GnssFixType = gnss.FixType;
             payload.GnssLat = gnss.Lat;
             payload.GnssLon = gnss.Lon;
