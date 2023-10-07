@@ -13,11 +13,12 @@ internal class StartCommand : Command<StartCommand.Settings>
         [Description("Config file path")]
         [CommandArgument(0, "[config_file]")]
         public string ConfigFilePath { get; init; } = "config.json";
+        
     }
 
     public override int Execute(CommandContext context, Settings settings)
     {
-        using var cfgSvc = new JsonOneFileConfiguration(settings.ConfigFilePath, true, null);
+        using var cfgSvc = new JsonOneFileConfiguration(settings.ConfigFilePath, true, null,true);
         
         
         var waitForProcessShutdownStart = new ManualResetEventSlim();

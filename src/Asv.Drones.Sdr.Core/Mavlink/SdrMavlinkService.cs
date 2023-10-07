@@ -50,7 +50,7 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     
     [ImportingConstructor]
-    public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator, CompositionContainer container, [ImportMany]IEnumerable<IMavParamTypeMetadata> paramList)
+    public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator, CompositionContainer container, [ImportMany]IEnumerable<IMavlinkParamsProvider> paramList)
     {
         Router = new MavlinkRouter(MavlinkV2Connection.RegisterDefaultDialects).DisposeItWith(Disposable);
         var cfg = config.Get<GbsServerServiceConfig>();
@@ -65,7 +65,7 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             {
                 ComponentId = cfg.ComponentId,
                 SystemId = cfg.SystemId
-            }, cfg.Server,Scheduler.Default, paramList,
+            }, cfg.Server,Scheduler.Default, paramList.SelectMany(x=>x.GetParams()),
                 MavParamHelper.ByteWiseEncoding, config)
             .DisposeItWith(Disposable);
         Server.Start();
