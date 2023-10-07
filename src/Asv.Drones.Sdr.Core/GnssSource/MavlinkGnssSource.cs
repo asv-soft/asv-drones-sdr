@@ -14,7 +14,7 @@ public class MavlinkGnssSourceConfig
     public int DeviceTimeoutMs { get; set; } = 10_000;
     public byte GnssSystemId { get; set; } = 1;
     public byte GnssComponentId { get; set; } = 1;
-    public ushort ReqMessageRate { get; set; } = 1;
+    public ushort ReqMessageRate { get; set; } = 5;
 }
 
 [Export(typeof(IGnssSource))]
@@ -78,6 +78,7 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
                     ReqStreamId = (int)MavDataStream.MavDataStreamAll
                 }
             }, DisposeCancel);
+           
 
                 
         }
