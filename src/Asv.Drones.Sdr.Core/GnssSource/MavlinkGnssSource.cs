@@ -20,7 +20,7 @@ public class MavlinkGnssSourceConfig
 [Export(typeof(IGnssSource))]
 [Export(typeof(ITimeService))]
 [PartCreationPolicy(CreationPolicy.Shared)]
-public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeService
+public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource, ITimeService
 {
     private readonly ISdrMavlinkService _svc;
     private readonly RxValue<GpsRawIntPayload?> _gnss;
@@ -31,6 +31,7 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
     private readonly LinkIndicator _link = new(3);
     private bool _needToRequestAgain;
     private int _isRequestInfoIsInProgressOrAlreadySuccess;
+    private long _correctionIn100NanosecondTicks = 0;
 
     [ImportingConstructor]
     public MavlinkGnssSource(ISdrMavlinkService svc,IConfiguration config)
@@ -56,6 +57,11 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
             // only one time
             .Subscribe(_ => Task.Factory.StartNew(TryToRequestData, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach)).DisposeItWith(Disposable);
 
+        _gnss.Subscribe(v =>
+        {
+            if (v != null)
+                SetCorrection((MavlinkTypesHelper.FromUnixTimeUs(v.TimeUsec) - DateTime.Now).Ticks);
+        }).DisposeItWith(Disposable);
     }
 
     private async void TryToRequestData()
@@ -100,11 +106,12 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
     public IRxValue<GlobalPositionIntPayload?> Position => _position;
 
     public IRxValue<AttitudePayload?> Attitude => _attitude;
+    
     public void SetCorrection(long correctionIn100NanosecondsTicks)
     {
-        throw new NotImplementedException();
+        Interlocked.Exchange(ref _correctionIn100NanosecondTicks, correctionIn100NanosecondsTicks);
     }
 
-    public DateTime Now => _gnss.Value == null ? DateTime.Now : MavlinkTypesHelper.FromUnixTimeUs(_gnss.Value.TimeUsec);
+    public DateTime Now => DateTime.Now + TimeSpan.FromTicks(Interlocked.Read(ref _correctionIn100NanosecondTicks));
 }
 
