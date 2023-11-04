@@ -5,6 +5,7 @@ using Asv.Common;
 using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.Common;
+using Asv.Mavlink.V2.Minimal;
 using NLog;
 
 namespace Asv.Drones.Sdr.Core;
@@ -18,9 +19,10 @@ public class MavlinkGnssSourceConfig
 }
 
 [Export(typeof(IGnssSource))]
+[Export(typeof(IUavMissionSource))]
 [Export(typeof(ITimeService))]
 [PartCreationPolicy(CreationPolicy.Shared)]
-public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource, ITimeService
+public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeService,IUavMissionSource
 {
     private readonly ISdrMavlinkService _svc;
     private readonly RxValue<GpsRawIntPayload?> _gnss;
@@ -32,6 +34,7 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource, ITimeSer
     private bool _needToRequestAgain;
     private int _isRequestInfoIsInProgressOrAlreadySuccess;
     private long _correctionIn100NanosecondTicks = 0;
+    private readonly RxValue<ushort> _reachedWaypointIndex;
 
     [ImportingConstructor]
     public MavlinkGnssSource(ISdrMavlinkService svc,IConfiguration config)
@@ -56,12 +59,13 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource, ITimeSer
         _link.DistinctUntilChanged().Where(_ => _needToRequestAgain).Where(_ => _ == LinkState.Connected)
             // only one time
             .Subscribe(_ => Task.Factory.StartNew(TryToRequestData, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach)).DisposeItWith(Disposable);
-
         _gnss.Subscribe(v =>
         {
-            if (v != null)
-                SetCorrection((MavlinkTypesHelper.FromUnixTimeUs(v.TimeUsec) - DateTime.Now).Ticks);
+            /*if (v != null)
+                SetCorrection((MavlinkTypesHelper.FromUnixTimeUs(v.TimeUsec) - DateTime.Now).Ticks);*/
         }).DisposeItWith(Disposable);
+        _reachedWaypointIndex = new RxValue<ushort>().DisposeItWith(Disposable);
+        pkts.Filter<MissionItemReachedPacket>().Select(p=>p.Payload.Seq).Subscribe(_reachedWaypointIndex).DisposeItWith(Disposable);
     }
 
     private async void TryToRequestData()
@@ -106,12 +110,17 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource, ITimeSer
     public IRxValue<GlobalPositionIntPayload?> Position => _position;
 
     public IRxValue<AttitudePayload?> Attitude => _attitude;
-    
     public void SetCorrection(long correctionIn100NanosecondsTicks)
     {
-        Interlocked.Exchange(ref _correctionIn100NanosecondTicks, correctionIn100NanosecondsTicks);
+        var origin = Interlocked.Exchange(ref _correctionIn100NanosecondTicks, correctionIn100NanosecondsTicks);
+        if (origin != correctionIn100NanosecondsTicks)
+        {
+            Logger.Trace($"Correction changed from {origin} to {correctionIn100NanosecondsTicks} ns");
+        }
     }
 
     public DateTime Now => DateTime.Now + TimeSpan.FromTicks(Interlocked.Read(ref _correctionIn100NanosecondTicks));
+
+    public IRxValue<ushort> ReachedWaypointIndex => _reachedWaypointIndex;
 }
 

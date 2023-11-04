@@ -72,7 +72,7 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
         
         Observable.Timer(TimeSpan.FromSeconds(5)).Subscribe(_ =>
         {
-            var version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
             Server.StatusText.Log(MavSeverity.MavSeverityInfo, $"SDR version: {version}");
         });
     }

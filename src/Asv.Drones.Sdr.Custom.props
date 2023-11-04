@@ -4,8 +4,8 @@
     <Nullable>enable</Nullable>
     <ProductVersion>0.1.1</ProductVersion>
     <AvaloniaVersion>11.0.0</AvaloniaVersion>
-    <AsvCommonVersion>1.12.5</AsvCommonVersion>
-    <AsvMavlinkVersion>3.4.2-alpha10</AsvMavlinkVersion>
+    <AsvCommonVersion>1.12.7</AsvCommonVersion>
+    <AsvMavlinkVersion>3.5.0-alpha02</AsvMavlinkVersion>
     <CompositionVersion>7.0.0</CompositionVersion>
     <NLogVersion>5.2.0</NLogVersion>
   </PropertyGroup>
