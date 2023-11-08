@@ -263,7 +263,7 @@ namespace Asv.Drones.Sdr.Core
            
         }
 
-        public async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,int sendingThinningRatio, CancellationToken cancel)
+        public async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, CancellationToken cancel)
         {
             if (_currentMode.Mode == mode) return MavResult.MavResultAccepted;
             
@@ -494,7 +494,7 @@ namespace Asv.Drones.Sdr.Core
                 return;
             }
             _stopwatch.Restart();
-            var ratio = (int)state!;
+            var ratio = (uint)state!;
             try
             {
                 var mode = _currentMode;

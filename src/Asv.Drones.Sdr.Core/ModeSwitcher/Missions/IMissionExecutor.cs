@@ -17,7 +17,7 @@ public interface IMissionExecutor
 
 public interface IMissionActions
 {
-    Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,int sendingThinningRatio, CancellationToken cancel);
+    Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, CancellationToken cancel);
     Task<MavResult> StopRecord(CancellationToken token);
     Task<MavResult> StartRecord(string recordName, CancellationToken cancel);
     Task<MavResult> CurrentRecordSetTag(AsvSdrRecordTagType type, string name, byte[] value, CancellationToken cancel);
@@ -135,22 +135,28 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
 
     private async Task SdrDelay(ServerMissionItem item, CancellationToken cancel)
     {
-        var delayMs = BitConverter.ToUInt32(BitConverter.GetBytes(item.Param1));
+        using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
+        AsvSdrHelper.GetArgsForSdrDelay(item, out var delayMs);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrDelay:G}(delayMs:{delayMs})");
         _device.StatusText.Info($"MISSION[{item.Seq}]: Delay {delayMs} ms");
-        await Task.Delay(TimeSpan.FromMilliseconds(delayMs), cancel);
+        await Task.Delay(TimeSpan.FromMilliseconds(delayMs), cs.Token);
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrDelay:G}(delayMs:{delayMs})");
     }
 
     private async Task WaitVehicleWaypoint(ServerMissionItem item, CancellationToken cancel)
     {
-        var requestedIndex = (ushort)BitConverter.ToUInt32(BitConverter.GetBytes(item.Param1)); 
+        using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
+        AsvSdrHelper.GetArgsForSdrWaitVehicleWaypoint(item, out var requestedIndex);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
         var tcs = new TaskCompletionSource();
-        
+        using var c = cancel.Register(() => tcs.TrySetCanceled());
         using var c1 = cancel.Register(() =>
         {
             tcs.TrySetCanceled();
         });
         using var reachedSubscribe = _uav.ReachedWaypointIndex.Subscribe(inx =>
         {
+            Logger.Trace($"Mission item [{item.Seq}]: {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex}) recv reached waypoint index: {inx}");
             if (inx == requestedIndex)
             {
                 tcs.TrySetResult();
@@ -158,25 +164,18 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
         });
         _device.StatusText.Info($"MISSION[{item.Seq}]: Wait UAV {requestedIndex} waypoint");
         await tcs.Task;
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
     }
 
     private async Task SetRecordTag(ServerMissionItem item, CancellationToken cancel)
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
-        var tagType = (AsvSdrRecordTagType)BitConverter.ToUInt32(BitConverter.GetBytes(item.Param1));
-        var nameArray = new byte[AsvSdrHelper.RecordTagNameMaxLength];
-        BitConverter.GetBytes(item.Param2).CopyTo(nameArray,0);
-        BitConverter.GetBytes(item.Param3).CopyTo(nameArray,4);
-        BitConverter.GetBytes(item.Param4).CopyTo(nameArray,8);
-        BitConverter.GetBytes(item.X).CopyTo(nameArray,12);
-        var name = MavlinkTypesHelper.GetString(nameArray); 
-        AsvSdrHelper.CheckTagName(name);
-        var valueArray = new byte[AsvSdrHelper.RecordTagValueMaxLength];
-        BitConverter.GetBytes(item.Y).CopyTo(valueArray,0);
-        BitConverter.GetBytes(item.Z).CopyTo(valueArray,4);
+        AsvSdrHelper.GetArgsForSdrCurrentRecordSetTag(item, out var name, out var tagType, out var valueArray);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrSetRecordTag:G}({AsvSdrHelper.PrintTag(name,tagType, valueArray)})");
+        _device.StatusText.Info($"MISSION[{item.Seq}]: Set tag {AsvSdrHelper.PrintTag(name,tagType, valueArray)}");
         var result = await _actions.CurrentRecordSetTag(tagType,name,valueArray, cs.Token).ConfigureAwait(false);
         CheckResult(result);
-        
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrSetRecordTag:G}({AsvSdrHelper.PrintTag(name,tagType, valueArray)})");
     }
 
    
@@ -184,40 +183,33 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
     private async Task StopRecord(ServerMissionItem item, CancellationToken cancel)
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
+        AsvSdrHelper.GetArgsForSdrStopRecord(item);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrStopRecord:G}");
+        _device.StatusText.Info($"MISSION[{item.Seq}]: Stop record");
         var result = await _actions.StopRecord(cs.Token).ConfigureAwait(false);
         CheckResult(result);
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrStopRecord:G}");
     }
 
     private async Task StartRecord(ServerMissionItem item, CancellationToken cancel)
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
-        var nameArray = new byte[AsvSdrHelper.RecordNameMaxLength];
-        BitConverter.GetBytes(item.Param1).CopyTo(nameArray,0);
-        BitConverter.GetBytes(item.Param2).CopyTo(nameArray,4);
-        BitConverter.GetBytes(item.Param3).CopyTo(nameArray,8);
-        BitConverter.GetBytes(item.Param4).CopyTo(nameArray,12);
-        BitConverter.GetBytes(item.X).CopyTo(nameArray,16);
-        BitConverter.GetBytes(item.Y).CopyTo(nameArray,20);
-        BitConverter.GetBytes(item.Z).CopyTo(nameArray,24);
-        var name = MavlinkTypesHelper.GetString(nameArray);
-        _device.StatusText.Info($"MISSION[{item.Seq}]: Start rec {name}");
+        AsvSdrHelper.GetArgsForSdrStartRecord(item, out var name);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrStartRecord:G}(name:{name})");
+        _device.StatusText.Info($"MISSION[{item.Seq}]: Start record {name}");
         var result = await _actions.StartRecord(name, cs.Token);
         CheckResult(result);
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrStartRecord:G}(name:{name})");
     }
 
     private async Task SetMode(ServerMissionItem item, CancellationToken cancel)
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
-        var mode = (AsvSdrCustomMode)BitConverter.ToUInt32(BitConverter.GetBytes(item.Param1));
-        var freqArray = new byte[8];
-        BitConverter.GetBytes(item.Param2).CopyTo(freqArray,0);
-        BitConverter.GetBytes(item.Param3).CopyTo(freqArray,4);
-        var freq = BitConverter.ToUInt64(freqArray,0);
-        var rate = item.Param4;
-        var sendingThinningRatio = BitConverter.ToInt32(BitConverter.GetBytes(item.X));
+        AsvSdrHelper.GetArgsForSdrSetMode(item, out var mode, out var freq, out var rate, out var sendingThinningRatio);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio})");
         var result = await _actions.SetMode(mode,freq, rate,sendingThinningRatio, cs.Token).ConfigureAwait(false);
         CheckResult(result);
-        
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio})");
     }
     private static void CheckResult(MavResult result)
     {
@@ -248,7 +240,7 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
                 _currentMissionIndex++;
                 if (_missionItems.Any(m=>m.Seq == _currentMissionIndex) == false)
                 {
-                    _device.StatusText.Error($"Mission '{_currentMissionIndex}' completed");
+                    _device.StatusText.Info($"Mission completed");
                     MissionState = AsvSdrMissionState.AsvSdrMissionStateIdle;
                     return;
                 }
