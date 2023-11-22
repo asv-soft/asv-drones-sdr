@@ -10,7 +10,7 @@ public class IdleWorkMode : IWorkMode
 
     public ulong FrequencyHz => 0;
 
-    public Task Init(ulong frequencyHz, CancellationToken cancel)
+    public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         return Task.CompletedTask;
     }

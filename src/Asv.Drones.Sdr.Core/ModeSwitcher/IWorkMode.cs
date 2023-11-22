@@ -9,7 +9,7 @@ public interface IWorkMode:IDisposable
 {
     AsvSdrCustomMode Mode { get; }
     ulong FrequencyHz { get; }
-    Task Init(ulong frequencyHz, CancellationToken cancel);
+    Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel);
     void ReadData(Guid writerRecordId, uint dataIndex, IPayload payload);
    
 }

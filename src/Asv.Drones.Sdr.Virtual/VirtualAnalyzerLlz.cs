@@ -16,7 +16,7 @@ public class VirtualAnalyzerLlz : IAnalyzerLlz
     {
         _random = new NormalRandom();
     }
-    public Task Init(ulong frequencyHz, CancellationToken cancel)
+    public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         return Task.CompletedTask;
     }

@@ -17,7 +17,7 @@ public interface IMissionExecutor
 
 public interface IMissionActions
 {
-    Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, CancellationToken cancel);
+    Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, float refPower, CancellationToken cancel);
     Task<MavResult> StopRecord(CancellationToken token);
     Task<MavResult> StartRecord(string recordName, CancellationToken cancel);
     Task<MavResult> CurrentRecordSetTag(AsvSdrRecordTagType type, string name, byte[] value, CancellationToken cancel);
@@ -205,11 +205,11 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
     private async Task SetMode(ServerMissionItem item, CancellationToken cancel)
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
-        AsvSdrHelper.GetArgsForSdrSetMode(item, out var mode, out var freq, out var rate, out var sendingThinningRatio);
-        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio})");
-        var result = await _actions.SetMode(mode,freq, rate,sendingThinningRatio, cs.Token).ConfigureAwait(false);
+        AsvSdrHelper.GetArgsForSdrSetMode(item, out var mode, out var freq, out var rate, out var sendingThinningRatio, out var refPower);
+        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio}, refPower:{refPower})");
+        var result = await _actions.SetMode(mode,freq, rate,sendingThinningRatio,refPower, cs.Token).ConfigureAwait(false);
         CheckResult(result);
-        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio})");
+        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrSetMode:G}(mode:{mode}, freq:{freq}, rate:{rate}, sendingThinningRatio:{sendingThinningRatio}, refPower:{refPower})");
     }
     private static void CheckResult(MavResult result)
     {

@@ -8,7 +8,7 @@ namespace Asv.Drones.Sdr.Virtual;
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class VirtualAnalyzerVor : IAnalyzerVor
 {
-    public Task Init(ulong frequencyHz, CancellationToken cancel)
+    public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         return Task.CompletedTask;
     }

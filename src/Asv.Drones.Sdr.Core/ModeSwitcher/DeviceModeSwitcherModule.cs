@@ -34,6 +34,7 @@ namespace Asv.Drones.Sdr.Core
         private readonly ISdrMavlinkService _svc;
         private readonly CompositionContainer _container;
         private readonly ITimeService _time;
+        private readonly ICalibrationProvider _calibration;
         private readonly IHierarchicalStore<Guid,IListDataFile<AsvSdrRecordFileMetadata>> _store;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private IWorkMode _currentMode;
@@ -54,12 +55,13 @@ namespace Asv.Drones.Sdr.Core
 
 
         [ImportingConstructor]
-        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config, ITimeService time, IUavMissionSource uav)
+        public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config, ITimeService time, IUavMissionSource uav,ICalibrationProvider calibration)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _container = container ?? throw new ArgumentNullException(nameof(container));
             _time = time ?? throw new ArgumentNullException(nameof(time));
+            _calibration = calibration ?? throw new ArgumentNullException(nameof(calibration));
             _config = config.Get<DeviceModeSwitcherConfig>();
             if (Directory.Exists(_config.SdrRecordStoreFolder) == false)
             {
@@ -100,15 +102,40 @@ namespace Asv.Drones.Sdr.Core
             _svc.Server.SdrEx.Base.OnRecordDeleteRequest.Subscribe(OnRecordDeleteRequest).DisposeItWith(Disposable);
             _svc.Server.SdrEx.Base.OnRecordTagDeleteRequest.Subscribe(OnRecordTagDeleteRequest).DisposeItWith(Disposable);
             _svc.Server.SdrEx.Base.OnRecordDataRequest.Subscribe(OnRecordDataRequest).DisposeItWith(Disposable);
-            
+
+            #region Mission
+
             var missionExecutor = new MissionExecutor(_svc.Server, this, uav).DisposeItWith(Disposable); 
             _svc.Server.SdrEx.StartMission = missionExecutor.StartMission;
             _svc.Server.SdrEx.StopMission = missionExecutor.StopMission;
-
             _store.Count.Subscribe(count => _svc.Server.SdrEx.Base.Set(_ => _.RecordCount = count)).DisposeItWith(Disposable);
             _store.Size.Subscribe(size => _svc.Server.SdrEx.Base.Set(_ => _.Size = size)).DisposeItWith(Disposable);
-            
             _svc.Server.Missions.Items.Bind(_missionItems).Subscribe().DisposeItWith(Disposable);
+
+            #endregion
+            #region Calibration
+
+            _svc.Server.SdrEx.TryReadCalibrationTableInfo = calibration.TryReadCalibrationTableInfo;            
+            _svc.Server.SdrEx.TryReadCalibrationTableRow = calibration.TryReadCalibrationTableRow;
+            _svc.Server.SdrEx.StartCalibration = calibration.StartCalibration;
+            _svc.Server.SdrEx.StopCalibration = calibration.StopCalibration;
+            _svc.Server.SdrEx.WriteCalibrationTable = calibration.WriteCalibrationTable;
+            _svc.Server.SdrEx.Base.Set(s => s.CalibTableCount = calibration.TableCount);
+            _calibration.StopCalibration(CancellationToken.None);
+            if (calibration.TableCount == 0)
+            {
+                _svc.Server.SdrEx.Base.Set(s => s.CalibState = AsvSdrCalibState.AsvSdrCalibStateNotSupported);
+            }
+            else
+            {
+                calibration.IsInProgress
+                    .Subscribe(x=> _svc.Server.SdrEx.Base.Set(s => s.CalibState = x ? AsvSdrCalibState.AsvSdrCalibStateProgress: AsvSdrCalibState.AsvSdrCalibStateOk))
+                    .DisposeItWith(Disposable);
+            }
+
+            #endregion
+           
+            
             Disposable.AddAction(() =>
             {
                 _timer?.Dispose();
@@ -263,7 +290,7 @@ namespace Asv.Drones.Sdr.Core
            
         }
 
-        public async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, CancellationToken cancel)
+        public async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, float refPower, CancellationToken cancel)
         {
             if (_currentMode.Mode == mode) return MavResult.MavResultAccepted;
             
@@ -326,7 +353,8 @@ namespace Asv.Drones.Sdr.Core
             try
             {
                 _currentMode = newMode.Value;
-                await _currentMode.Init(frequencyHz,cancel);
+                _calibration.SetMode(frequencyHz, refPower);
+                await _currentMode.Init(frequencyHz, refPower,_calibration,cancel);
                 _timer = new Timer(RecordTick, sendingThinningRatio, 1000, recordDelay);
             }
             catch (Exception e)

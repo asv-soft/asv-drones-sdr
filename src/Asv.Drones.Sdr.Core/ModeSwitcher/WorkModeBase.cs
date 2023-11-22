@@ -48,12 +48,16 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     protected ITimeService TimeService { get; }
 
     public ulong FrequencyHz { get; private set; }
+    public float RefPower { get; private set; }
 
-    public Task Init(ulong frequencyHz, CancellationToken cancel)
+    public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         FrequencyHz = frequencyHz;
-        return _analyser.Init(frequencyHz, cancel);
+        RefPower = refPower;
+        return _analyser.Init(frequencyHz,refPower,calibration, cancel);
     }
+
+    
 
     public AsvSdrCustomMode Mode { get; }
 
