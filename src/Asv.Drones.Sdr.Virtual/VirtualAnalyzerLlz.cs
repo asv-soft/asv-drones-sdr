@@ -10,12 +10,17 @@ namespace Asv.Drones.Sdr.Virtual;
 public class VirtualAnalyzerLlz : IAnalyzerLlz
 {
     private readonly NormalRandom _random;
+    private readonly RxValue<float> _signalOverflowIndicator;
 
     [ImportingConstructor]
     public VirtualAnalyzerLlz()
     {
         _random = new NormalRandom();
+        _signalOverflowIndicator = new RxValue<float>(Single.NaN);
     }
+
+    public IRxValue<float> SignalOverflowIndicator => _signalOverflowIndicator;
+
     public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         return Task.CompletedTask;
@@ -58,5 +63,6 @@ public class VirtualAnalyzerLlz : IAnalyzerLlz
 
     public void Dispose()
     {
+        _signalOverflowIndicator.Dispose();
     }
 }

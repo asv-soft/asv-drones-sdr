@@ -43,7 +43,7 @@ public class CalibrationProvider:DisposableOnceWithCancel, ICalibrationProvider
                     {
                         Updated = DateTime.Now,
                     },
-                    Rows = table.CreateDefault(),
+                    Rows = table.CreateDefault().ToArray(),
                 });
             }
             else
@@ -80,7 +80,7 @@ public class CalibrationProvider:DisposableOnceWithCancel, ICalibrationProvider
             throw new AsvSdrException("Invalid table index");
         }
         var table = _tables[tableIndex];
-        table.Update(metadata, items);
+        items = table.Update(metadata, items);
         _file.Set(table.Name, new CalibrationTablePod
         {
             Name = table.Name,

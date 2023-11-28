@@ -26,6 +26,7 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
         Mode = mode;
         _gnssSource = gnssSource ?? throw new ArgumentNullException(nameof(gnssSource));
         TimeService = timeService ?? throw new ArgumentNullException(nameof(timeService));
+        
         var cfg = configuration.Get<WorkModeBaseConfig>();
         var implDict = cfg.Analyzers[mode.ToString("G")];
         if (implDict.Count == 0) throw new Exception($"Cfg: {typeof(TAnalyzer).Name} implementation not found");
@@ -58,6 +59,7 @@ public abstract class WorkModeBase<TAnalyzer,TPayload>: DisposableOnceWithCancel
     }
 
     
+    public IRxValue<float> SignalOverflowIndicator => _analyser.SignalOverflowIndicator;
 
     public AsvSdrCustomMode Mode { get; }
 

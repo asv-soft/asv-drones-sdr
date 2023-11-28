@@ -166,7 +166,10 @@ namespace Asv.Drones.Sdr.Core
                     await Task.Delay(_config.RecordSendDelayMs);
                     var ii = i;
                     Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS:DATA({ii})");
-                    await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>reader.File.Read(ii,x));
+                    await _svc.Server.SdrEx.Base.SendRecordData(metadata.Info.DataType,x=>
+                    {
+                        var result = reader.File.Read(ii, x);
+                    });
                 }
                 Logger.Trace($"=>{nameof(OnRecordDataRequest)}[{req.RequestId:000}]=>SUCCESS: END SEND({count})");
             }
@@ -329,6 +332,11 @@ namespace Asv.Drones.Sdr.Core
                 {
                     _.CustomMode = (uint)AsvSdrCustomMode.AsvSdrCustomModeIdle;
                 });
+                _svc.Server.SdrEx.Base.Set(_ =>
+                {
+                    _.RefPower = Single.NaN;
+                    _.SignalOverflow = Single.NaN;
+                });
                 return MavResult.MavResultAccepted;
             }
             
@@ -355,6 +363,10 @@ namespace Asv.Drones.Sdr.Core
                 _currentMode = newMode.Value;
                 _calibration.SetMode(frequencyHz, refPower);
                 await _currentMode.Init(frequencyHz, refPower,_calibration,cancel);
+                // we no need to dispose this subscription because it will be disposed with _currentMode
+                _currentMode.SignalOverflowIndicator.Subscribe(v =>
+                    _svc.Server.SdrEx.Base.Set(i => i.SignalOverflow = v));
+                
                 _timer = new Timer(RecordTick, sendingThinningRatio, 1000, recordDelay);
             }
             catch (Exception e)
@@ -366,6 +378,11 @@ namespace Asv.Drones.Sdr.Core
                 {
                     _.CustomMode = (uint)AsvSdrCustomMode.AsvSdrCustomModeIdle;
                 });    
+                _svc.Server.SdrEx.Base.Set(_ =>
+                {
+                    _.RefPower = Single.NaN;
+                    _.SignalOverflow = Single.NaN;
+                });
                 return MavResult.MavResultFailed;
             }
             _svc.Server.Heartbeat.Set(_ =>
@@ -400,7 +417,7 @@ namespace Asv.Drones.Sdr.Core
                 _currentRecord.Dispose();
                 _currentRecord = null;
                 _currentRecordId = Guid.Empty;
-                Interlocked.Exchange(ref _recordCounter, 0);
+                //Interlocked.Exchange(ref _recordCounter, 0);
             }
             _svc.Server.SdrEx.Base.Set(_ =>
             {
@@ -528,7 +545,7 @@ namespace Asv.Drones.Sdr.Core
                 var mode = _currentMode;
                 var writer = _currentRecord;
                
-                var dataIndex = Interlocked.Increment(ref _recordCounter);
+                var dataIndex = Interlocked.Increment(ref _recordCounter) - 1; // start from 0 index
                 if (dataIndex % ratio == 0)
                 {
                     // need save and send
@@ -542,8 +559,11 @@ namespace Asv.Drones.Sdr.Core
                 {
                     // need save only
                     var data = _svc.Server.SdrEx.Base.CreateRecordData(_currentMode.Mode);
-                    mode.ReadData(_currentRecordId,dataIndex, data.Payload);
-                    writer?.File.Write(dataIndex, data.Payload);
+                    if (writer != null)
+                    {
+                        mode.ReadData(_currentRecordId,dataIndex, data.Payload);
+                        writer.File.Write(dataIndex, data.Payload);
+                    }
                 }
             }
             catch (Exception e)

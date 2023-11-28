@@ -5,20 +5,24 @@ namespace Asv.Drones.Sdr.Core;
 
 public abstract class PiecewiseLinearCalibrationItem : ICalibrationItem
 {
-    private readonly SortedDictionary<ulong,SortedDictionary<float,PiecewiseLinearFunctionDelete>> _tables = new();
+    private readonly SortedDictionary<ulong,SortedDictionary<float,PiecewiseLinearFunction>> _tables = new();
     private readonly object _sync = new();
     private ulong _freq;
     private float _refPower;
-    private PiecewiseLinearFunctionDelete? _selectedTable;
+    private PiecewiseLinearFunction? _selectedTable;
     public abstract string Name { get; }
     public ushort Size { get; private set; }
     public bool IsEnabled { get; set; }
     public CalibrationTableMetadata Metadata { get; private set; } = null!;
-    public abstract CalibrationTableRow[] CreateDefault();
-    public void Update(CalibrationTableMetadata metadata, CalibrationTableRow[] dataMetadata)
+    public abstract IEnumerable<CalibrationTableRow> CreateDefault();
+    public CalibrationTableRow[] Update(CalibrationTableMetadata metadata, CalibrationTableRow[] dataMetadata)
     {
         lock (_sync)
         {
+            if (dataMetadata.Length == 0)
+            {
+                dataMetadata = CreateDefault().ToArray();
+            }
             Metadata = metadata;
             Size = (ushort)dataMetadata.Length;
             _selectedTable = null;
@@ -48,7 +52,7 @@ public abstract class PiecewiseLinearCalibrationItem : ICalibrationItem
             _tables.Clear();
             foreach (var subItem in pointTable)
             {
-                var subItemTable = new SortedDictionary<float, PiecewiseLinearFunctionDelete>();
+                var subItemTable = new SortedDictionary<float, PiecewiseLinearFunction>();
                 _tables.Add(subItem.Key, subItemTable);
                 foreach (var subSubItems in subItem.Value)
                 {
@@ -60,11 +64,12 @@ public abstract class PiecewiseLinearCalibrationItem : ICalibrationItem
                         array[i, 1] = item.Value;
                         ++i;
                     }
-                    subItemTable.Add(subSubItems.Key, new PiecewiseLinearFunctionDelete(array));
+                    subItemTable.Add(subSubItems.Key, new PiecewiseLinearFunction(array));
                 }
             }
         }
         SetMode(_freq, _refPower);
+        return dataMetadata;
     }
 
     public bool TryReadCalibrationTableRow(ushort rowindex, out CalibrationTableRow? row)

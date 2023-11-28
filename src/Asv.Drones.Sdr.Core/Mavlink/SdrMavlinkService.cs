@@ -15,8 +15,6 @@ public class GbsServerServiceConfig
 {
     public MavlinkPortConfig[] Ports { get; set; } = new[]
     {
-        
-        
            
 #if DEBUG
         new MavlinkPortConfig
@@ -68,6 +66,11 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             }, cfg.Server,Scheduler.Default, paramList.SelectMany(x=>x.GetParams()),
                 MavParamHelper.ByteWiseEncoding, config)
             .DisposeItWith(Disposable);
+        Server.SdrEx.Base.Set(_=>
+        {
+            _.SignalOverflow = Single.NaN;
+            _.RefPower = Single.NaN;
+        });
         Server.Start();
         
         Observable.Timer(TimeSpan.FromSeconds(5)).Subscribe(_ =>
