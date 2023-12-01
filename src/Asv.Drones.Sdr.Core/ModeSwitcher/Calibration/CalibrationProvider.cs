@@ -2,6 +2,7 @@ using System.ComponentModel.Composition;
 using Asv.Cfg;
 using Asv.Cfg.Json;
 using Asv.Common;
+using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.Common;
 
@@ -28,6 +29,7 @@ public class CalibrationProvider:DisposableOnceWithCancel, ICalibrationProvider
     {
         _isInProgress = new RxValue<bool>(false).DisposeItWith(Disposable);
         var cfg = config.Get<CalibrationProviderConfig>();
+        CalibrationFolder = cfg.CalibrationFolder;
         _file = new JsonConfiguration(cfg.CalibrationFolder).DisposeItWith(Disposable);
         ushort counter = 0;
         _tables = new List<ICalibrationItem>();
@@ -57,6 +59,7 @@ public class CalibrationProvider:DisposableOnceWithCancel, ICalibrationProvider
         TableCount = counter;
     }
 
+    public string CalibrationFolder { get; }
     public IRxValue<bool> IsInProgress => _isInProgress;
     public ushort TableCount { get; }
     public Task<MavResult> StartCalibration(CancellationToken cancel)

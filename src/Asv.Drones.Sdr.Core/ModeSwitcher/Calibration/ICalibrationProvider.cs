@@ -6,6 +6,7 @@ namespace Asv.Drones.Sdr.Core;
 
 public interface ICalibrationProvider:IDisposable
 {
+    string CalibrationFolder { get; }
     IRxValue<bool> IsInProgress { get; }
     ushort TableCount { get; }
     Task<MavResult> StartCalibration(CancellationToken cancel);
