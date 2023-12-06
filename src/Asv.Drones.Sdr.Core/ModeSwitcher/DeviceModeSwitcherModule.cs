@@ -508,6 +508,9 @@ namespace Asv.Drones.Sdr.Core
                     case AsvSdrSystemControlAction.AsvSdrSystemControlActionShutdown:
                         Process.Start("shutdown", "/s /t 0");
                         return Task.FromResult(MavResult.MavResultAccepted);
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionRestart:
+                        Environment.Exit(0);
+                        return Task.FromResult(MavResult.MavResultAccepted);
                     default:
                         return Task.FromResult(MavResult.MavResultFailed);
                 }
@@ -522,6 +525,9 @@ namespace Asv.Drones.Sdr.Core
                         return Task.FromResult(MavResult.MavResultAccepted);
                     case AsvSdrSystemControlAction.AsvSdrSystemControlActionShutdown:
                         Process.Start("/usr/bin/sudo", "/bin/systemctl poweroff");
+                        return Task.FromResult(MavResult.MavResultAccepted);
+                    case AsvSdrSystemControlAction.AsvSdrSystemControlActionRestart:
+                        Environment.Exit(0);
                         return Task.FromResult(MavResult.MavResultAccepted);
                     default:
                         return Task.FromResult(MavResult.MavResultFailed);
