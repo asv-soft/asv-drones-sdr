@@ -1,7 +1,9 @@
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
+using System.Reactive.Linq;
 using Asv.Cfg;
 using Asv.Common;
+using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
 using Asv.Mavlink.V2.Common;
@@ -12,11 +14,44 @@ namespace Asv.Drones.Sdr.Core;
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload>
 {
+    private float _azimuth;
+    
+    private IDisposable _osdTelemTimerDisposable;
+    private readonly ISdrMavlinkService _svc;
+
     [ImportingConstructor]
-    public VorWorkMode(IGnssSource gnssSource, ITimeService time, IConfiguration configuration, CompositionContainer container) 
+    public VorWorkMode(ISdrMavlinkService svc, IGnssSource gnssSource, ITimeService time, IConfiguration configuration, CompositionContainer container) 
         : base(AsvSdrCustomMode.AsvSdrCustomModeVor , gnssSource, time, configuration, container)
     {
+        _svc = svc;
+        
+        UpdateOsdTelemetryTimer(_svc.Server.Params[MavlinkDefaultParams.OsdTelemetryRate]);
+        
+        _svc.Server.Params.OnUpdated.Subscribe(_ =>
+        {
+            if (_.Metadata.Name == MavlinkDefaultParams.OsdTelemetryRate.Name)
+            {
+                UpdateOsdTelemetryTimer(_.NewValue);
+            }
+        }).DisposeItWith(Disposable);
+
+        Disposable.AddAction(() => _osdTelemTimerDisposable?.Dispose());
     }
+    
+    private void UpdateOsdTelemetryTimer(int rate)
+    {
+        _osdTelemTimerDisposable?.Dispose();
+
+        if (rate > 0)
+        {
+            _osdTelemTimerDisposable = Observable.Timer(TimeSpan.Zero, TimeSpan.FromSeconds(rate))
+                .Subscribe(_ =>
+                {
+                    _svc.Server.StatusText.Info($"Azimuth: {_azimuth}");
+                });
+        }
+    }
+    
     protected override void InternalFill(AsvSdrRecordDataVorPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload? gnss, AttitudePayload? attitude,
         GlobalPositionIntPayload? position)
@@ -94,5 +129,7 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
         }
         // Measure
         Analyzer.Fill(payload);
+        
+        _azimuth = payload.Azimuth;
     }   
 }
