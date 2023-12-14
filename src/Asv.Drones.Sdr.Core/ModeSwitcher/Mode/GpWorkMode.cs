@@ -1,7 +1,9 @@
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
+using System.Reactive.Linq;
 using Asv.Cfg;
 using Asv.Common;
+using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.AsvSdr;
 using Asv.Mavlink.V2.Common;
@@ -12,11 +14,46 @@ namespace Asv.Drones.Sdr.Core;
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class GpWorkMode : WorkModeBase<IAnalyzerGp, AsvSdrRecordDataGpPayload>
 {
+    private float _totalAm90;
+    private float _totalAm150;
+
+    private IDisposable _osdTelemTimerDisposable;
+    private readonly ISdrMavlinkService _svc;
+
     [ImportingConstructor]
-    public GpWorkMode(IGnssSource gnssSource,ITimeService time, IConfiguration configuration, CompositionContainer container) 
+    public GpWorkMode(ISdrMavlinkService svc, IGnssSource gnssSource,ITimeService time, IConfiguration configuration, CompositionContainer container) 
         : base(AsvSdrCustomMode.AsvSdrCustomModeGp , gnssSource,time, configuration, container)
     {
+        _svc = svc;
+        
+        UpdateOsdTelemetryTimer(_svc.Server.Params[MavlinkDefaultParams.OsdTelemetryRate]);
+        
+        _svc.Server.Params.OnUpdated.Subscribe(_ =>
+        {
+            if (_.Metadata.Name == MavlinkDefaultParams.OsdTelemetryRate.Name)
+            {
+                UpdateOsdTelemetryTimer(_.NewValue);
+            }
+        }).DisposeItWith(Disposable);
+        
+        Disposable.AddAction(() => _osdTelemTimerDisposable?.Dispose());
     }
+    
+    private void UpdateOsdTelemetryTimer(int rate)
+    {
+        _osdTelemTimerDisposable?.Dispose();
+
+        if (rate > 0)
+        {
+            _osdTelemTimerDisposable = Observable.Timer(TimeSpan.Zero, TimeSpan.FromSeconds(rate))
+                .Subscribe(_ =>
+                {
+                    _svc.Server.StatusText.Info($"Total DDM: {_totalAm90 - _totalAm150}");
+                    _svc.Server.StatusText.Info($"Total SDM: {_totalAm90 + _totalAm150}");
+                });
+        }
+    }
+    
     protected override void InternalFill(AsvSdrRecordDataGpPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload? gnss, AttitudePayload? attitude,
         GlobalPositionIntPayload? position)
@@ -93,5 +130,8 @@ public class GpWorkMode : WorkModeBase<IAnalyzerGp, AsvSdrRecordDataGpPayload>
         }
         // Measure
         Analyzer.Fill(payload);
+        
+        _totalAm90 = payload.TotalAm90;
+        _totalAm150 = payload.TotalAm150;
     }
 }
