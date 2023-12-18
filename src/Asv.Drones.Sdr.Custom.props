@@ -5,7 +5,7 @@
     <ProductVersion>0.1.1</ProductVersion>
     <AvaloniaVersion>11.0.0</AvaloniaVersion>
     <AsvCommonVersion>1.13.1</AsvCommonVersion>
-    <AsvMavlinkVersion>3.6.0-alpha08</AsvMavlinkVersion>
+    <AsvMavlinkVersion>3.6.0-alpha12</AsvMavlinkVersion>
     <CompositionVersion>7.0.0</CompositionVersion>
     <NLogVersion>5.2.6</NLogVersion>
   </PropertyGroup>
