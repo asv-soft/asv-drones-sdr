@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.Composition;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
@@ -7,6 +8,8 @@ using Asv.Cfg;
 using Asv.Common;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.Common;
+using DynamicData;
+using DynamicData.Binding;
 using NLog;
 
 namespace Asv.Drones.Sdr.Core.Mavlink;
@@ -39,6 +42,8 @@ public class GbsServerServiceConfig
     public byte SystemId { get; set; } = 1;
     public SdrServerDeviceConfig Server { get; set; } = new();
     public bool WrapToV2ExtensionEnabled { get; set; } = true;
+
+    public ServerMissionItem[] MissionItems { get; set; } = { };
 }
 
 [Export(typeof(ISdrMavlinkService))]
@@ -46,7 +51,8 @@ public class GbsServerServiceConfig
 public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-    
+    private ReadOnlyObservableCollection<ServerMissionItem> _missionItems;
+
     [ImportingConstructor]
     public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator, CompositionContainer container, [ImportMany]IEnumerable<IMavlinkParamsProvider> paramList)
     {
@@ -71,6 +77,17 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             _.SignalOverflow = Single.NaN;
             _.RefPower = Single.NaN;
         });
+
+        Server.Missions.AddItems(cfg.MissionItems);
+        
+        Server.Missions.Items
+            .Bind(out _missionItems)
+            .Subscribe(_ =>
+            {
+                cfg.MissionItems = _missionItems.ToArray();
+                config.Set(cfg);
+            }).DisposeItWith(Disposable);
+        
         Server.Start();
         
         Observable.Timer(TimeSpan.FromSeconds(5)).Subscribe(_ =>
