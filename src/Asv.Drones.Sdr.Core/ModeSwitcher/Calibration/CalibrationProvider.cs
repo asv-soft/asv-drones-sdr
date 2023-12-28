@@ -6,9 +6,6 @@ using Asv.Drones.Sdr.Core.Mavlink;
 using Asv.Mavlink;
 using Asv.Mavlink.V2.Common;
 
-
-
-
 namespace Asv.Drones.Sdr.Core;
 
 public class CalibrationProviderConfig

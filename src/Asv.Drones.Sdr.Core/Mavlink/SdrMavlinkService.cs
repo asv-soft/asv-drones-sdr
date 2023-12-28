@@ -14,8 +14,17 @@ using NLog;
 
 namespace Asv.Drones.Sdr.Core.Mavlink;
 
+/// <summary>
+/// Configuration class for the GbsServerService.
+/// </summary>
 public class GbsServerServiceConfig
 {
+    /// <summary>
+    /// Gets or sets the array of MavlinkPortConfig objects representing the ports used for communication.
+    /// </summary>
+    /// <value>
+    /// The array of MavlinkPortConfig objects.
+    /// </value>
     public MavlinkPortConfig[] Ports { get; set; } = new[]
     {
            
@@ -38,21 +47,73 @@ public class GbsServerServiceConfig
             
     };
 
+    /// <summary>
+    /// Gets or sets the component ID.
+    /// </summary>
+    /// <value>The component ID.</value>
     public byte ComponentId { get; set; } = 15;
+
+    /// <summary>
+    /// Gets or sets the identifier of the system.
+    /// </summary>
+    /// <value>
+    /// The identifier of the system.
+    /// </value>
     public byte SystemId { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the configuration for the Server device.
+    /// </summary>
+    /// <value>
+    /// The configuration for the Server device.
+    /// </value>
     public SdrServerDeviceConfig Server { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the WrapToV2Extension is enabled.
+    /// </summary>
+    /// <value>
+    /// <c>true</c> if the WrapToV2Extension is enabled; otherwise, <c>false</c>.
+    /// </value>
     public bool WrapToV2ExtensionEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the mission items for the server.
+    /// </summary>
+    /// <value>
+    /// The mission items for the server.
+    /// </value>
     public ServerMissionItem[] MissionItems { get; set; } = { };
 }
 
+/// <summary>
+/// Represents a service for handling Mavlink communication with an SDR device.
+/// </summary>
 [Export(typeof(ISdrMavlinkService))]
 [PartCreationPolicy(CreationPolicy.Shared)]
 public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
 {
+    /// <summary>
+    /// Represents a logging facility for the current class.
+    /// </summary>
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
+    /// <summary>
+    /// Represents a read-only collection of server mission items.
+    /// </summary>
     private ReadOnlyObservableCollection<ServerMissionItem> _missionItems;
 
+    /// <summary>
+    /// Represents a service for handling SDR MAVLink communication.
+    /// </summary>
+    /// <remarks>
+    /// This service is responsible for configuring the MAVLink router, adding ports, creating the SDR server device,
+    /// setting up mission items, starting the server, and logging the SDR version.
+    /// </remarks>
+    /// <param name="config">The configuration object used to determine settings for the service.</param>
+    /// <param name="sequenceCalculator">The packet sequence calculator used by the server device.</param>
+    /// <param name="container">The composition container for importing MAVLink parameters providers.</param>
+    /// <param name="paramList">The list of MAVLink parameters providers.</param>
     [ImportingConstructor]
     public SdrMavlinkService(IConfiguration config, IPacketSequenceCalculator sequenceCalculator, CompositionContainer container, [ImportMany]IEnumerable<IMavlinkParamsProvider> paramList)
     {
@@ -97,6 +158,22 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
         });
     }
 
+    /// <summary>
+    /// Gets the Mavlink router.
+    /// </summary>
+    /// <remarks>
+    /// The Mavlink router is responsible for routing Mavlink messages between different components or devices.
+    /// </remarks>
+    /// <value>
+    /// The Mavlink router.
+    /// </value>
     public IMavlinkRouter Router { get; }
+
+    /// <summary>
+    /// Gets the ISdrServerDevice associated with the property.
+    /// </summary>
+    /// <returns>
+    /// The ISdrServerDevice associated with the property.
+    /// </returns>
     public ISdrServerDevice Server { get; }
 }

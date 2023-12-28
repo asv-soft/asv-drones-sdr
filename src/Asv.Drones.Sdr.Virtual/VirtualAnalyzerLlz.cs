@@ -5,13 +5,26 @@ using Asv.Mavlink.V2.AsvSdr;
 
 namespace Asv.Drones.Sdr.Virtual;
 
+/// <summary>
+/// Represents a virtual analyzer for the LLZ custom mode in the ASV SDR system.
+/// </summary>
 [ExportAnalyzer(AsvSdrCustomMode.AsvSdrCustomModeLlz, "Virtual")]
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class VirtualAnalyzerLlz : IAnalyzerLlz
 {
+    /// <summary>
+    /// Represents a normal random number generator.
+    /// </summary>
     private readonly NormalRandom _random;
+
+    /// <summary>
+    /// A readonly RxValue variable that represents the signal overflow indicator.
+    /// </summary>
     private readonly RxValue<float> _signalOverflowIndicator;
 
+    /// <summary>
+    /// This class represents a virtual analyzer for Llz.
+    /// </summary>
     [ImportingConstructor]
     public VirtualAnalyzerLlz()
     {
@@ -19,13 +32,40 @@ public class VirtualAnalyzerLlz : IAnalyzerLlz
         _signalOverflowIndicator = new RxValue<float>(Single.NaN);
     }
 
+    /// <summary>
+    /// Gets the signal overflow indicator.
+    /// </summary>
+    /// <remarks>
+    /// This property returns the signal overflow indicator, which is a read-only object implementing the <see cref="IRxValue{T}"/> interface where T is <see cref="float"/>.
+    /// </remarks>
+    /// <returns>
+    /// An object implementing the <see cref="IRxValue{T}"/> interface where T is <see cref="float"/>. This object can be used to observe the value of the signal overflow indicator.
+    /// </returns>
     public IRxValue<float> SignalOverflowIndicator => _signalOverflowIndicator;
 
+    /// <summary>
+    /// Initializes the system with specified frequency, reference power, calibration provider, and cancellation token.
+    /// </summary>
+    /// <param name="frequencyHz">The frequency in hertz.</param>
+    /// <param name="refPower">The reference power.</param>
+    /// <param name="calibration">The calibration provider.</param>
+    /// <param name="cancel">The cancellation token.</param>
+    /// <returns>A task that represents the initialization process.</returns>
+    /// <remarks>
+    /// This method initializes the system with the specified frequency, reference power, calibration provider,
+    /// and cancellation token. Once initialized, the system is ready to perform operations at the specified frequency
+    /// and reference power levels. The calibration provider is used to calibrate the system for accurate measurements.
+    /// The cancellation token can be used to cancel the initialization process.
+    /// </remarks>
     public Task Init(ulong frequencyHz, float refPower, ICalibrationProvider calibration, CancellationToken cancel)
     {
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Fills the given payload with random values for CrsAm90 and TotalAm90 properties.
+    /// </summary>
+    /// <param name="payload">The payload to be filled.</param>
     public void Fill(AsvSdrRecordDataLlzPayload payload)
     {
         // payload.CrsCarrierOffset = .CrsCarrierOffset;
@@ -61,6 +101,9 @@ public class VirtualAnalyzerLlz : IAnalyzerLlz
         // payload.MeasureTime = _gnssSource.MeasureTime;
     }
 
+    /// <summary>
+    /// Disposes the resources used by the current object.
+    /// </summary>
     public void Dispose()
     {
         _signalOverflowIndicator.Dispose();

@@ -10,16 +10,45 @@ using Asv.Mavlink.V2.Common;
 
 namespace Asv.Drones.Sdr.Core;
 
+/// <summary>
+/// Represents the GpWorkMode class.
+/// </summary>
 [ExportMode(AsvSdrCustomMode.AsvSdrCustomModeGp, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagGp)]
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class GpWorkMode : WorkModeBase<IAnalyzerGp, AsvSdrRecordDataGpPayload>
 {
+    /// <summary>
+    /// Represents the total amount with precision up to two decimal places.
+    /// </summary>
     private float _totalAm90;
+
+    /// <summary>
+    /// Represents the total amount (in float) for a particular item with a value of 150.
+    /// </summary>
     private float _totalAm150;
 
+    /// <summary>
+    /// Represents a disposable object that allows cancellation of a timer for OSD telemetry.
+    /// </summary>
     private IDisposable _osdTelemTimerDisposable;
+
+    /// <summary>
+    /// Represents an instance of the SdrMavlinkService.
+    /// </summary>
+    /// <remarks>
+    /// The SdrMavlinkService provides functionality for communicating with MAVLink devices and sending/receiving MAVLink messages.
+    /// This variable is readonly, meaning it cannot be reassigned after initialization.
+    /// </remarks>
     private readonly ISdrMavlinkService _svc;
 
+    /// <summary>
+    /// Initializes a new instance of the GpWorkMode class with the specified dependencies.
+    /// </summary>
+    /// <param name="svc">The ISdrMavlinkService instance to use.</param>
+    /// <param name="gnssSource">The IGnssSource instance to use.</param>
+    /// <param name="time">The ITimeService instance to use.</param>
+    /// <param name="configuration">The IConfiguration instance to use.</param>
+    /// <param name="container">The CompositionContainer instance to use.</param>
     [ImportingConstructor]
     public GpWorkMode(ISdrMavlinkService svc, IGnssSource gnssSource,ITimeService time, IConfiguration configuration, CompositionContainer container) 
         : base(AsvSdrCustomMode.AsvSdrCustomModeGp , gnssSource,time, configuration, container)
@@ -38,7 +67,11 @@ public class GpWorkMode : WorkModeBase<IAnalyzerGp, AsvSdrRecordDataGpPayload>
         
         Disposable.AddAction(() => _osdTelemTimerDisposable?.Dispose());
     }
-    
+
+    /// <summary>
+    /// Updates OSD (On-screen Display) telemetry timer with the specified rate.
+    /// </summary>
+    /// <param name="rate">The rate (in seconds) at which the telemetry timer should be updated. Setting rate to a value greater than 0 will enable the timer, while setting it to 0 or a negative value will disable the timer.</param>
     private void UpdateOsdTelemetryTimer(int rate)
     {
         _osdTelemTimerDisposable?.Dispose();
@@ -53,7 +86,16 @@ public class GpWorkMode : WorkModeBase<IAnalyzerGp, AsvSdrRecordDataGpPayload>
                 });
         }
     }
-    
+
+    /// <summary>
+    /// Fills the given payload with data from various sources.
+    /// </summary>
+    /// <param name="payload">The payload to fill.</param>
+    /// <param name="record">The record GUID.</param>
+    /// <param name="dataIndex">The data index.</param>
+    /// <param name="gnss">The GNSS data. Can be null.</param>
+    /// <param name="attitude">The attitude data. Can be null.</param>
+    /// <param name="position">The global position data. Can be null.</param>
     protected override void InternalFill(AsvSdrRecordDataGpPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload? gnss, AttitudePayload? attitude,
         GlobalPositionIntPayload? position)
