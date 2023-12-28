@@ -10,15 +10,36 @@ using Asv.Mavlink.V2.Common;
 
 namespace Asv.Drones.Sdr.Core;
 
+/// <summary>
+/// Represents a VorWorkMode class.
+/// </summary>
 [ExportMode(AsvSdrCustomMode.AsvSdrCustomModeVor, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagVor)]
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload>
 {
+    /// <summary>
+    /// Represents the azimuth angle in degrees.
+    /// </summary>
     private float _azimuth;
-    
+
+    /// <summary>
+    /// Represents a disposable timer used for telemetry in OSD.
+    /// </summary>
     private IDisposable _osdTelemTimerDisposable;
+
+    /// <summary>
+    /// Represents an instance of the SdrMavlinkService interface.
+    /// </summary>
     private readonly ISdrMavlinkService _svc;
 
+    /// <summary>
+    /// A custom work mode that uses VOR navigation.
+    /// </summary>
+    /// <param name="svc">The SDR Mavlink service.</param>
+    /// <param name="gnssSource">The GNSS source.</param>
+    /// <param name="time">The time service.</param>
+    /// <param name="configuration">The configuration settings.</param>
+    /// <param name="container">The composition container.</param>
     [ImportingConstructor]
     public VorWorkMode(ISdrMavlinkService svc, IGnssSource gnssSource, ITimeService time, IConfiguration configuration, CompositionContainer container) 
         : base(AsvSdrCustomMode.AsvSdrCustomModeVor , gnssSource, time, configuration, container)
@@ -37,7 +58,11 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
 
         Disposable.AddAction(() => _osdTelemTimerDisposable?.Dispose());
     }
-    
+
+    /// <summary>
+    /// Updates the OSD telemetry timer with the specified rate.
+    /// </summary>
+    /// <param name="rate">The rate at which the timer should fire in seconds.</param>
     private void UpdateOsdTelemetryTimer(int rate)
     {
         _osdTelemTimerDisposable?.Dispose();
@@ -51,7 +76,16 @@ public class VorWorkMode : WorkModeBase<IAnalyzerVor, AsvSdrRecordDataVorPayload
                 });
         }
     }
-    
+
+    /// <summary>
+    /// Fills the given <paramref name="payload"/> with data from the provided parameters.
+    /// </summary>
+    /// <param name="payload">The payload to fill.</param>
+    /// <param name="record">The record Guid.</param>
+    /// <param name="dataIndex">The data index.</param>
+    /// <param name="gnss">The GNSS data.</param>
+    /// <param name="attitude">The attitude data.</param>
+    /// <param name="position">The global position data.</param>
     protected override void InternalFill(AsvSdrRecordDataVorPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload? gnss, AttitudePayload? attitude,
         GlobalPositionIntPayload? position)

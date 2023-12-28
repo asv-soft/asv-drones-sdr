@@ -10,14 +10,31 @@ using Asv.Mavlink.V2.Common;
 
 namespace Asv.Drones.Sdr.Core;
 
+/// <summary>
+/// Represents a custom work mode for the Llz analyzer.
+/// </summary>
 [ExportMode(AsvSdrCustomMode.AsvSdrCustomModeLlz, AsvSdrCustomModeFlag.AsvSdrCustomModeFlagLlz)]
 [PartCreationPolicy(CreationPolicy.NonShared)]
 public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload>
 {
+    /// <summary>
+    /// Represents the total amount in the Am90 currency.
+    /// </summary>
     private float _totalAm90;
+
+    /// <summary>
+    /// The total amount of 150 units.
+    /// </summary>
     private float _totalAm150;
-    
+
+    /// <summary>
+    /// Represents the disposable timer for OSD telemetry.
+    /// </summary>
     private IDisposable _osdTelemTimerDisposable;
+
+    /// <summary>
+    /// Private readonly field representing an instance of the ISdrMavlinkService interface.
+    /// </summary>
     private readonly ISdrMavlinkService _svc;
     
     [ImportingConstructor]
@@ -38,7 +55,11 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload
         
         Disposable.AddAction(() => _osdTelemTimerDisposable?.Dispose());
     }
-    
+
+    /// <summary>
+    /// Updates the OSD telemetry timer.
+    /// </summary>
+    /// <param name="rate">The rate at which to update the telemetry, in seconds.</param>
     private void UpdateOsdTelemetryTimer(int rate)
     {
         _osdTelemTimerDisposable?.Dispose();
@@ -53,7 +74,16 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload
                 });
         }
     }
-    
+
+    /// <summary>
+    /// Fills the given <paramref name="payload"/> with data from various payloads.
+    /// </summary>
+    /// <param name="payload">The payload to be filled.</param>
+    /// <param name="record">The record identifier.</param>
+    /// <param name="dataIndex">The index of the data.</param>
+    /// <param name="gnss">The GNSS payload.</param>
+    /// <param name="attitude">The attitude payload.</param>
+    /// <param name="position">The global position payload.</param>
     protected override void InternalFill(AsvSdrRecordDataLlzPayload payload, Guid record, uint dataIndex,
         GpsRawIntPayload? gnss, AttitudePayload? attitude,
         GlobalPositionIntPayload? position)

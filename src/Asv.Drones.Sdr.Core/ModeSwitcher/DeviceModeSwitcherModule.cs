@@ -17,43 +17,156 @@ using MavCmd = Asv.Mavlink.V2.AsvSdr.MavCmd;
 
 namespace Asv.Drones.Sdr.Core
 {
-
+    /// <summary>
+    /// Configuration class for the DeviceModeSwitcher.
+    /// </summary>
     public class DeviceModeSwitcherConfig
     {
+        /// <summary>
+        /// Gets or sets the delay in milliseconds between sending each record.
+        /// </summary>
+        /// <value>
+        /// The delay in milliseconds between sending each record.
+        /// </value>
         public int RecordSendDelayMs { get; set; } = 30;
+
+        /// <summary>
+        /// Gets or sets the folder path where the SDR records are stored.
+        /// </summary>
         public string SdrRecordStoreFolder { get; set; } = "records";
+
+        /// <summary>
+        /// Gets or sets the time, in milliseconds, that a file is kept in the cache.
+        /// </summary>
+        /// <value>
+        /// The time, in milliseconds, that a file is kept in the cache. The default value is 5000 milliseconds (5 seconds).
+        /// </value>
         public int FileCacheTimeMs { get; set; } = 5_000;
     }
 
+    /// <summary>
+    /// Represents a module responsible for switching the device's mode.
+    /// </summary>
     [ExportModule(Name,WorkModeCheckConfigModule.Name)]
     [PartCreationPolicy(CreationPolicy.Shared)]
     public class DeviceModeSwitcherModule : DisposableOnceWithCancel, IModule, IMissionActions
     {
         public const string Name = "ModeSwitcher";
 
+        /// <summary>
+        /// Represents an instance of the SdrMavlinkService interface.
+        /// </summary>
         private readonly ISdrMavlinkService _svc;
+
+        /// <summary>
+        /// Represents a private readonly instance of a <see cref="CompositionContainer"/>.
+        /// The CompositionContainer is used for handling dependencies and performing composition in a managed application.
+        /// </summary>
         private readonly CompositionContainer _container;
+
+        /// <summary>
+        /// Represents an object that provides access to time-related functionality.
+        /// </summary>
+        /// <remarks>
+        /// This interface is used to abstract the retrieval of time to allow for easier testing and mocking.
+        /// </remarks
         private readonly ITimeService _time;
+
+        /// <summary>
+        /// Represents a private readonly variable that provides calibration data.
+        /// </summary>
         private readonly ICalibrationProvider _calibration;
+
+        /// <summary>
+        /// Represents a hierarchical store to store a list of data files with metadata.
+        /// </summary>
         private readonly IHierarchicalStore<Guid,IListDataFile<AsvSdrRecordFileMetadata>> _store;
+
+        /// <summary>
+        /// Represents a logger for logging messages and events.
+        /// </summary>
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
+        /// <summary>
+        /// Represents the current work mode.
+        /// </summary>
         private IWorkMode _currentMode;
         private readonly DeviceModeSwitcherConfig _config;
+
+        /// <summary>
+        /// The private Timer object used for tracking time. </summary>
         private Timer? _timer;
+
+        /// <summary>
+        /// This is a private variable used to store the information of whether a record is busy or not. It has a double data type.
+        /// A value of 1 indicates that the record is busy, while a value of 0 indicates that the record is not busy.
+        /// </summary>
         private double _recordIsBusy;
         private readonly Stopwatch _stopwatch = new();
+
+        /// <summary>
+        /// This variable represents a circular buffer used for storing the elapsed time of ticks.
+        /// </summary>
+        /// <remarks>
+        /// A circular buffer is a fixed-size buffer that wraps around when the end is reached, allowing
+        /// for efficient read and write operations without the need to shift elements. In this case, the
+        /// buffer is instantiated with a capacity of 100 elements, and each element is of type double,
+        /// representing the elapsed time in ticks. The buffer will store the elapsed time of the 100
+        /// latest ticks.
+        /// </remarks>
         private readonly CircularBuffer2<double> _recordTickElapsedTime = new(100);
+
+        /// <summary>
+        /// This private variable represents the number of skipped ticks for a record.
+        /// </summary>
         private int _skippedRecordTick;
+
+        /// <summary>
+        /// Represents the tick value when an error occurred.
+        /// </summary>
         private int _errorRecordTick;
+
+        /// <summary>
+        /// Object used for synchronization to ensure thread safety.
+        /// </summary>
         private readonly object _sync = new();
+
+        /// <summary>
+        /// Represents the unique identifier of the current record.
+        /// </summary>
         private Guid _currentRecordId;
+
+        /// <summary>
+        /// Represents a counter for tracking the number of records processed.
+        /// </summary>
         private uint _recordCounter;
+
+        /// <summary>
+        /// Represents a Stopwatch used for recording time durations.
+        /// </summary>
         private readonly Stopwatch _recordStopwatch = new();
         private readonly MD5 _md5 = MD5.Create();
+
+        /// <summary>
+        /// Represents the current record being processed.
+        /// </summary>
         private ICachedFile<Guid,IListDataFile<AsvSdrRecordFileMetadata>>? _currentRecord;
+
+        /// <summary>
+        /// Collection of server mission items.
+        /// </summary>
         private readonly IObservableCollection<ServerMissionItem> _missionItems = new ObservableCollectionExtended<ServerMissionItem>();
 
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DeviceModeSwitcherModule"/> class.
+        /// </summary>
+        /// <param name="svc">The SdrMavlinkService.</param>
+        /// <param name="container">The CompositionContainer.</param>
+        /// <param name="config">The configuration.</param>
+        /// <param name="time">The time service.</param>
+        /// <param name="uav">The UAV mission source.</param>
+        /// <param name="calibration">The calibration provider.</param>
         [ImportingConstructor]
         public DeviceModeSwitcherModule(ISdrMavlinkService svc, CompositionContainer container,IConfiguration config, ITimeService time, IUavMissionSource uav,ICalibrationProvider calibration)
         {
@@ -143,6 +256,10 @@ namespace Asv.Drones.Sdr.Core
             });
         }
 
+        /// <summary>
+        /// Handles a record data request.
+        /// </summary>
+        /// <param name="req">The payload containing the request data.</param>
         private async void OnRecordDataRequest(AsvSdrRecordDataRequestPayload req)
         {
             Logger.Trace($"<={nameof(OnRecordDataRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
@@ -181,6 +298,11 @@ namespace Asv.Drones.Sdr.Core
             }
           
         }
+
+        /// <summary>
+        /// Event handler for deleting a tag associated with a record.
+        /// </summary>
+        /// <param name="req">The payload containing the necessary information for the delete request.</param>
         private async void OnRecordTagDeleteRequest(AsvSdrRecordTagDeleteRequestPayload req)
         {
             try
@@ -211,6 +333,11 @@ namespace Asv.Drones.Sdr.Core
             }
          
         }
+
+        /// <summary>
+        /// Event handler method for handling record delete requests.
+        /// </summary>
+        /// <param name="req">The payload of the delete request containing the GUID of the record to be deleted.</param>
         private async void OnRecordDeleteRequest(AsvSdrRecordDeleteRequestPayload req)
         {
             try
@@ -228,6 +355,11 @@ namespace Asv.Drones.Sdr.Core
             }
      
         }
+
+        /// <summary>
+        /// Handles record tag request.
+        /// </summary>
+        /// <param name="req">The record tag request payload.</param>
         private async void OnRecordTagRequest(AsvSdrRecordTagRequestPayload req)
         {
             Logger.Trace($"<={nameof(OnRecordTagRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
@@ -264,6 +396,11 @@ namespace Asv.Drones.Sdr.Core
             }
        
         }
+
+        /// <summary>
+        /// Handles a record request.
+        /// </summary>
+        /// <param name="req">The record request payload.</param>
         private async void OnRecordRequest(AsvSdrRecordRequestPayload req)
         {
             Logger.Trace($"<={nameof(OnRecordRequest)}[{req.RequestId:000}]<=(skip:{req.Skip} count:{req.Count})");
@@ -293,6 +430,16 @@ namespace Asv.Drones.Sdr.Core
            
         }
 
+        /// <summary>
+        /// Sets the mode of the software-defined radio (SDR) by initializing a new work mode and disposing the current work mode if necessary.
+        /// </summary>
+        /// <param name="mode">The desired work mode.</param>
+        /// <param name="frequencyHz">The desired frequency in Hz.</param>
+        /// <param name="recordRate">The desired record rate in Hz.</param>
+        /// <param name="sendingThinningRatio">The desired thinning ratio for sending.</param>
+        /// <param name="refPower">The reference power.</param>
+        /// <param name="cancel">The cancellation token to cancel the operation.</param>
+        /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation with a result of type <see cref="MavResult"/>.</returns>
         public async Task<MavResult> SetMode(AsvSdrCustomMode mode, ulong frequencyHz, float recordRate,uint sendingThinningRatio, float refPower, CancellationToken cancel)
         {
             if (_currentMode.Mode == mode) return MavResult.MavResultAccepted;
@@ -393,6 +540,11 @@ namespace Asv.Drones.Sdr.Core
             return MavResult.MavResultAccepted;
         }
 
+        /// <summary>
+        /// Stops the recording process.
+        /// </summary>
+        /// <param name="token">The cancellation token.</param>
+        /// <returns>The task representing the operation completion, returning a MavResult.</returns>
         public Task<MavResult> StopRecord(CancellationToken token)
         {
             if (_currentRecord == null) return Task.FromResult(MavResult.MavResultAccepted);
@@ -430,6 +582,12 @@ namespace Asv.Drones.Sdr.Core
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
+        /// <summary>
+        /// Starts recording with the specified record name and cancellation token.
+        /// </summary>
+        /// <param name="recordName">The name of the record to start.</param>
+        /// <param name="cancel">The cancellation token.</param>
+        /// <returns>Returns a Task of MavResult. If the record start is successful, it returns MavResultAccepted; otherwise, it returns MavResultDenied.</returns>
         public Task<MavResult> StartRecord(string recordName, CancellationToken cancel)
         {
             if (_currentMode.Mode == AsvSdrCustomMode.AsvSdrCustomModeIdle)
@@ -464,6 +622,8 @@ namespace Asv.Drones.Sdr.Core
             return Task.FromResult(MavResult.MavResultAccepted);
         }
 
+        /// <summary>
+        /// Sets a tag for the current record. </summary> <param name="type">The type of the tag.</param> <param name="name">The name of the tag.</param> <param name="value">The value of the tag.</param> <param name="cancel">The cancellation token.</param> <returns>A Task with a MavResult indicating the result of setting the tag.</returns>
         public Task<MavResult> CurrentRecordSetTag(AsvSdrRecordTagType type, string name, byte[] value, CancellationToken cancel)
         {
             if (_currentRecord == null)
@@ -496,6 +656,12 @@ namespace Asv.Drones.Sdr.Core
             }
         }
 
+        /// <summary>
+        /// Executes a system control action based on the given parameters.
+        /// </summary>
+        /// <param name="action">The system control action to perform.</param>
+        /// <param name="cancel">A cancellation token to cancel the operation.</param>
+        /// <returns>A task representing the asynchronous operation. The task result contains the result of the system control action.</returns>
         private Task<MavResult> SystemControlAction(AsvSdrSystemControlAction action, CancellationToken cancel)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -536,7 +702,11 @@ namespace Asv.Drones.Sdr.Core
             
             return Task.FromResult(MavResult.MavResultFailed);
         }
-        
+
+        /// <summary>
+        /// Records tick based on the state and saves/sends the data according to the ratio.
+        /// </summary>
+        /// <param name="state">The state that determines the tick ratio.</param>
         private async void RecordTick(object? state)
         {
             if (Interlocked.CompareExchange(ref _recordIsBusy, 1, 0) != 0)
@@ -586,6 +756,9 @@ namespace Asv.Drones.Sdr.Core
             
         }
 
+        /// <summary>
+        /// Initializes the method.
+        /// </summary>
         public void Init()
         {
             
