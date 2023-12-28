@@ -31,14 +31,14 @@ To ensure a smooth development experience, follow the steps below to set up your
 - Clone the project repository to your local machine using the following command:
 
    ```bash
-   git clone https://github.com/your-username/your-project.git
+   git clone https://github.com/asv-soft/asv-drones-sdr.git
    ```
 
 #### 5. **Restore Dependencies:**
 - Navigate to the project directory and restore the required dependencies using the following command:
 
    ```bash
-   cd your-project
+   cd (...)/asv-drones-sdr
    dotnet restore
    ```
 
