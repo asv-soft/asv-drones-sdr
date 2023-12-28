@@ -4,7 +4,7 @@
    
    In addition to its advanced communication capabilities, the SDR payload for drones also includes features such as geolocation and spectrum analysis, which enable operators to quickly and accurately locate and analyze radio signals in the surrounding environment. This information can be used to enhance situational awareness and support mission planning and execution.
 
-   Source code for this solution can be found [here](https://github.com/asv-soft/asv-drones-sdr).
+   This solution should be used with the main project Asv.Drones, you can find out more about it [here](https://docs.asv.me/).
 
 ## 2. Getting Started
 
@@ -31,14 +31,14 @@ To ensure a smooth development experience, follow the steps below to set up your
 - Clone the project repository to your local machine using the following command:
 
    ```bash
-   git clone https://github.com/your-username/your-project.git
+   git clone https://github.com/asv-soft/asv-drones-sdr.git
    ```
 
 #### 5. **Restore Dependencies:**
 - Navigate to the project directory and restore the required dependencies using the following command:
 
    ```bash
-   cd your-project
+   cd asv-drones-sdr
    dotnet restore
    ```
 
