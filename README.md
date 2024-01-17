@@ -1,3 +1,6 @@
+<div align="center">
+<img src="https://github.com/asv-soft/asv-drones-gui-afis/assets/151620493/932425b6-547e-4d35-bf90-6430265c8e97" width="400px">
+</div>
 ## 1. Introduction
 
    The SDR payload for drones is a cutting-edge solution that enables unmanned aerial vehicles (UAVs) to perform a variety of critical functions. This payload includes a state-of-the-art software-defined radio (SDR) that can be easily configured to support a wide range of frequency bands and modulation schemes, making it highly versatile and adaptable to different mission requirements.
