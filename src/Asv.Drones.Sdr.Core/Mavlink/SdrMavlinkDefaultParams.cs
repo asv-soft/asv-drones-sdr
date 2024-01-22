@@ -7,7 +7,7 @@ namespace Asv.Drones.Sdr.Core.Mavlink;
 /// <summary>
 /// MavlinkDefaultParams class contains default parameters for Mavlink.
 /// </summary>
-public static class MavlinkDefaultParams
+public static class SdrMavlinkDefaultParams
 {
     /// <summary>
     /// Represents the group name.
@@ -18,6 +18,42 @@ public static class MavlinkDefaultParams
     /// The category of a common element.
     /// </summary>
     public const string Category = "Common";
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    [Export(typeof(IMavParamTypeMetadata))]
+    public static IMavParamTypeMetadata SystemId = new MavParamTypeMetadata("SYS_ID", MavParamType.MavParamTypeInt32)
+    {
+        Group = Group,
+        Category = Category,
+        ShortDesc = "System ID",
+        LongDesc = "System identification for payload",
+        Units = null,
+        RebootRequired = false,
+        MinValue = Int32.MinValue,
+        MaxValue = Int32.MaxValue,
+        DefaultValue = 0,
+        Increment = 1,
+    };
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    [Export(typeof(IMavParamTypeMetadata))]
+    public static IMavParamTypeMetadata ComponentId = new MavParamTypeMetadata("COM_ID", MavParamType.MavParamTypeInt32)
+    {
+        Group = Group,
+        Category = Category,
+        ShortDesc = "Component ID",
+        LongDesc = "Component identification for payload",
+        Units = null,
+        RebootRequired = false,
+        MinValue = Int32.MinValue,
+        MaxValue = Int32.MaxValue,
+        DefaultValue = 0,
+        Increment = 1,
+    };
 
     /// <summary>
     /// Metadata for the BoardSerialNumber parameter.

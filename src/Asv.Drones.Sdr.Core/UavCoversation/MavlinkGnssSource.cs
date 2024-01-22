@@ -25,23 +25,6 @@ public class MavlinkGnssSourceConfig
     public int DeviceTimeoutMs { get; set; } = 10_000;
 
     /// <summary>
-    /// Gets or sets the GNSS system ID.
-    /// </summary>
-    /// <value>
-    /// The GNSS system ID is a byte indicating the identification of the GNSS system.
-    /// </value>
-    public byte GnssSystemId { get; set; } = 1;
-
-    /// <summary>
-    /// Gets or sets the GNSS component ID.
-    /// </summary>
-    /// <remarks>
-    /// The GNSS component ID is a byte value used to identify the specific GNSS component.
-    /// This property can be used to customize or identify different GNSS components in a system.
-    /// </remarks>
-    public byte GnssComponentId { get; set; } = 1;
-
-    /// <summary>
     /// Gets or sets the request message rate.
     /// </summary>
     /// <value>
@@ -132,6 +115,23 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
     /// The current index of the reached waypoint.
     /// </summary>
     private readonly RxValue<ushort> _reachedWaypointIndex;
+    
+    /// <summary>
+    /// Gets or sets the GNSS system ID.
+    /// </summary>
+    /// <value>
+    /// The GNSS system ID is a byte indicating the identification of the GNSS system.
+    /// </value>
+    private byte _gnssSystemId { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the GNSS component ID.
+    /// </summary>
+    /// <remarks>
+    /// The GNSS component ID is a byte value used to identify the specific GNSS component.
+    /// This property can be used to customize or identify different GNSS components in a system.
+    /// </remarks>
+    private byte _gnssComponentId { get; set; } = 1;
 
     /// <summary>
     /// Initializes a new instance of the MavlinkGnssSource class.
@@ -146,7 +146,10 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
         _svc = svc ?? throw new ArgumentNullException(nameof(svc)); 
         
         _config = config.Get<MavlinkGnssSourceConfig>();
-        var pkts = svc.Router.FilterVehicle(_config.GnssSystemId, _config.GnssComponentId).Publish().RefCount();
+        //TODO: We don't get data consistently, we need to access the prefix
+        _gnssComponentId = (byte)_svc.Server.Params[GnssMavlinkDefaultParams.GnssComponentId];
+        _gnssSystemId = (byte)_svc.Server.Params[GnssMavlinkDefaultParams.GnssSystemId];
+        var pkts = svc.Router.FilterVehicle(_gnssSystemId, _gnssComponentId).Publish().RefCount();
         _position = new RxValue<GlobalPositionIntPayload?>().DisposeItWith(Disposable);
         pkts.Filter<GlobalPositionIntPacket>().Select(_=>_.Payload).Subscribe(_position).DisposeItWith(Disposable);
         _gnss = new RxValue<GpsRawIntPayload?>().DisposeItWith(Disposable);
@@ -188,8 +191,8 @@ public class MavlinkGnssSource : DisposableOnceWithCancel, IGnssSource,ITimeServ
                 Payload =
                 {
                     ReqMessageRate = _config.ReqMessageRate,
-                    TargetSystem = _config.GnssSystemId,
-                    TargetComponent = _config.GnssComponentId,
+                    TargetSystem = _gnssSystemId,
+                    TargetComponent = _gnssComponentId,
                     StartStop = 1,
                     ReqStreamId = (int)MavDataStream.MavDataStreamAll
                 }
