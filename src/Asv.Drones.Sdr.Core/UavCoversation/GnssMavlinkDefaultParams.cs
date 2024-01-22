@@ -9,7 +9,7 @@ public class GnssMavlinkDefaultParams
     /// <summary>
     /// Represents the group name.
     /// </summary>
-    public const string Group = "SDR";
+    public const string Group = "GNSS";
 
     /// <summary>
     /// The category of a common element.
