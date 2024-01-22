@@ -4,10 +4,7 @@ using Asv.Mavlink.V2.Common;
 
 namespace Asv.Drones.Sdr.Core.Mavlink;
 
-/// <summary>
-/// MavlinkDefaultParams class contains default parameters for Mavlink.
-/// </summary>
-public static class MavlinkDefaultParams
+public class GnssMavlinkDefaultParams
 {
     /// <summary>
     /// Represents the group name.
@@ -18,40 +15,40 @@ public static class MavlinkDefaultParams
     /// The category of a common element.
     /// </summary>
     public const string Category = "Common";
-
+    
     /// <summary>
-    /// Metadata for the BoardSerialNumber parameter.
+    /// facilitates the precise identification of the GNSS system responsible for receiving and recording coordinate data during data acquisition.
     /// </summary>
     [Export(typeof(IMavParamTypeMetadata))]
-    public static IMavParamTypeMetadata BoardSerialNumber =  new MavParamTypeMetadata("BRD_SERIAL_NUM", MavParamType.MavParamTypeInt32)
+    public static IMavParamTypeMetadata GnssSystemId = new MavParamTypeMetadata("GNSS_SYS_ID", MavParamType.MavParamTypeInt32)
     {
         Group = Group,
         Category = Category,
-        ShortDesc = "Serial number",
-        LongDesc = "Board serial number",
+        ShortDesc = "GNSS System ID",
+        LongDesc = "System identification for GNSS",
         Units = null,
         RebootRequired = false,
         MinValue = Int32.MinValue,
         MaxValue = Int32.MaxValue,
-        DefaultValue = 0,
+        DefaultValue = 1,
         Increment = 1,
     };
-
+    
     /// <summary>
-    /// Represents the telemetry rate for the OSD (On-Screen Display).
+    /// to identify the UAV from which the coordinates are listened to when recording data
     /// </summary>
     [Export(typeof(IMavParamTypeMetadata))]
-    public static IMavParamTypeMetadata OsdTelemetryRate = new MavParamTypeMetadata("OSD_TEL_RATE", MavParamType.MavParamTypeInt32)
+    public static IMavParamTypeMetadata GnssComponentId = new MavParamTypeMetadata("GNSS_COM_ID", MavParamType.MavParamTypeInt32)
     {
         Group = Group,
         Category = Category,
-        ShortDesc = "OSD telemetry rate",
-        LongDesc = "The frequency at which the display is updated to display telemetry in OSD.",
-        Units = "Seconds",
+        ShortDesc = "GNSS Component ID",
+        LongDesc = "Component identification for GNSS",
+        Units = null,
         RebootRequired = false,
-        MinValue = 0,
+        MinValue = Int32.MinValue,
         MaxValue = Int32.MaxValue,
-        DefaultValue = 0,
+        DefaultValue = 1,
         Increment = 1,
     };
 }

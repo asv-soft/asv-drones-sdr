@@ -48,20 +48,6 @@ public class GbsServerServiceConfig
     };
 
     /// <summary>
-    /// Gets or sets the component ID.
-    /// </summary>
-    /// <value>The component ID.</value>
-    public byte ComponentId { get; set; } = 15;
-
-    /// <summary>
-    /// Gets or sets the identifier of the system.
-    /// </summary>
-    /// <value>
-    /// The identifier of the system.
-    /// </value>
-    public byte SystemId { get; set; } = 1;
-
-    /// <summary>
     /// Gets or sets the configuration for the Server device.
     /// </summary>
     /// <value>
@@ -125,14 +111,14 @@ public class SdrMavlinkService : DisposableOnceWithCancel, ISdrMavlinkService
             Logger.Trace($"Add port {port.Name}: {port.ConnectionString}");
             Router.AddPort(port);
         }
-        Logger.Trace($"Create device SYS:{cfg.SystemId}, COM:{cfg.ComponentId}");    
-        Server = new SdrServerDevice(Router, sequenceCalculator, new MavlinkServerIdentity
-            {
-                ComponentId = cfg.ComponentId,
-                SystemId = cfg.SystemId
-            }, cfg.Server,Scheduler.Default, paramList.SelectMany(x=>x.GetParams()),
-                MavParamHelper.ByteWiseEncoding, config)
-            .DisposeItWith(Disposable);
+
+        var systemId = SdrMavlinkDefaultParams.SystemId.ReadFromConfig(config, cfg.Server.Params.CfgPrefix);
+        var componentId = SdrMavlinkDefaultParams.ComponentId.ReadFromConfig(config, cfg.Server.Params.CfgPrefix);
+        
+        Logger.Trace($"Create device SYS:{systemId}, COM:{componentId}");    
+        Server = new SdrServerDevice(Router, sequenceCalculator, new MavlinkIdentity(systemId, componentId),
+           cfg.Server,Scheduler.Default, paramList.SelectMany(x=>x.GetParams()),
+                MavParamHelper.ByteWiseEncoding, config).DisposeItWith(Disposable);
         Server.SdrEx.Base.Set(_=>
         {
             _.SignalOverflow = Single.NaN;

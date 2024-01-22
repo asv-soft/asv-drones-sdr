@@ -43,11 +43,11 @@ public class LlzWorkMode : WorkModeBase<IAnalyzerLlz, AsvSdrRecordDataLlzPayload
     {
         _svc = svc;
         
-        UpdateOsdTelemetryTimer(_svc.Server.Params[MavlinkDefaultParams.OsdTelemetryRate]);
+        UpdateOsdTelemetryTimer(_svc.Server.Params[SdrMavlinkDefaultParams.OsdTelemetryRate]);
         
         _svc.Server.Params.OnUpdated.Subscribe(_ =>
         {
-            if (_.Metadata.Name == MavlinkDefaultParams.OsdTelemetryRate.Name)
+            if (_.Metadata.Name == SdrMavlinkDefaultParams.OsdTelemetryRate.Name)
             {
                 UpdateOsdTelemetryTimer(_.NewValue);
             }
