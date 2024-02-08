@@ -33,7 +33,7 @@ public static class SdrMavlinkDefaultParams
         RebootRequired = false,
         MinValue = Int32.MinValue,
         MaxValue = Int32.MaxValue,
-        DefaultValue = 0,
+        DefaultValue = 1,
         Increment = 1,
     };
     
@@ -51,7 +51,7 @@ public static class SdrMavlinkDefaultParams
         RebootRequired = false,
         MinValue = Int32.MinValue,
         MaxValue = Int32.MaxValue,
-        DefaultValue = 0,
+        DefaultValue = 13,
         Increment = 1,
     };
 
