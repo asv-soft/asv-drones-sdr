@@ -298,25 +298,34 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
     {
         using var cs = CancellationTokenSource.CreateLinkedTokenSource(DisposeCancel, cancel);
         AsvSdrHelper.GetArgsForSdrWaitVehicleWaypoint(item, out var requestedIndex);
-        Logger.Debug($"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
-        var tcs = new TaskCompletionSource();
-        using var c = cancel.Register(() => tcs.TrySetCanceled());
-        using var c1 = cancel.Register(() =>
-        {
-            tcs.TrySetCanceled();
-        });
+        Logger.Debug(
+            $"Mission item [{item.Seq}]: Begin {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
+
+        var tcs = new TaskCompletionSource<bool>();
+        var reachedIndex = 0;
+        
         using var reachedSubscribe = _uav.ReachedWaypointIndex.Subscribe(inx =>
         {
-            Logger.Trace($"Mission item [{item.Seq}]: {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex}) recv reached waypoint index: {inx}");
-            if (inx == requestedIndex)
+            Logger.Trace(
+                $"Mission item [{item.Seq}]: {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex}) recv reached waypoint index: {inx}");
+            reachedIndex = Math.Max(reachedIndex, inx);
+            if (reachedIndex >= requestedIndex)
             {
-                tcs.TrySetResult();
+                tcs.TrySetResult(true);
             }
         });
+
         _device.StatusText.Info($"MISSION[{item.Seq}]: Wait UAV {requestedIndex} waypoint");
-        await tcs.Task;
-        Logger.Debug($"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
+
+        await using (cancel.Register(() => tcs.TrySetCanceled()))
+        {
+            await tcs.Task;
+        }
+
+        Logger.Debug(
+            $"Mission item [{item.Seq}]: End {MavCmd.MavCmdAsvSdrWaitVehicleWaypoint:G}(requestedIndex:{requestedIndex})");
     }
+
 
     /// <summary>
     /// Sets the tag of a record in the server mission item.
@@ -405,7 +414,7 @@ public class MissionExecutor : DisposableOnceWithCancel, IMissionExecutor
     private async void MissionTick()
     {
         MissionState = AsvSdrMissionState.AsvSdrMissionStateProgress;
-        _device.StatusText.Error($"Mission started");
+        _device.StatusText.Info($"Mission started");
         try
         {
             while (_missionCancellationTokenSource is { IsCancellationRequested: false })
