@@ -27,19 +27,20 @@ public class Program
     static int Main(string[] args)
     {
         HandleExceptions();
-        Assembly.GetExecutingAssembly().PrintWelcomeToConsole();
-        Console.InputEncoding = Encoding.UTF8;
-        Console.OutputEncoding = Encoding.UTF8;
-        var app = new CommandApp<StartCommand>();
-        app.Configure(config =>
-        {
-            config.PropagateExceptions();
-#if DEBUG
-            config.ValidateExamples();
-#endif
-        });
+        
         try
         {
+            Assembly.GetExecutingAssembly().PrintWelcomeToConsole();
+            Console.InputEncoding = Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
+            var app = new CommandApp<StartCommand>();
+            app.Configure(config =>
+            {
+                config.PropagateExceptions();
+#if DEBUG
+                config.ValidateExamples();
+#endif
+            });
             return app.Run(args);
         }
         catch (Exception ex)

@@ -44,7 +44,7 @@ internal class StartCommand : Command<StartCommand.Settings>
     /// <returns>Returns the exit code.</returns>
     public override int Execute(CommandContext context, Settings settings)
     {
-        using var cfgSvc = new JsonOneFileConfiguration(settings.ConfigFilePath, true, null,true);
+        using var cfgSvc = new JsonOneFileConfiguration(settings.ConfigFilePath, true, TimeSpan.FromMicroseconds(100),true);
         
         
         var waitForProcessShutdownStart = new ManualResetEventSlim();
