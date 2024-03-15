@@ -53,7 +53,7 @@ public class WorkModeCheckConfigModule:IModule
             if (value.Count == 0) continue;
             if (value.All(_ => _.Value == false))
             {
-                value[implHashSet.First()] = true;
+                value[implHashSet.Last()] = true;
             }
         }
         config.Set(cfg);

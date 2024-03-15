@@ -71,7 +71,6 @@ public class VirtualAnalyzerGp : IAnalyzerGp
         payload.TotalAm90 = (float)am90;
         payload.ClrAm90 = (float)am90;
         
-        
         payload.CrsAm150 = (float)am150;
         payload.TotalAm150 = (float)am150;
         payload.ClrAm150 = (float)am150;
