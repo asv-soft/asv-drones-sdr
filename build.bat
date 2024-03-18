@@ -19,11 +19,11 @@ rem build all projects
   	echo %VERSION%
 	dotnet restore ./src/%%p/%%p.csproj
 	dotnet build /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release
-	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r linux-arm --self-contained -p:PublishSingleFile=true -f net7.0 -o bin/publish/linux-arm
+	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r linux-arm --self-contained -p:PublishSingleFile=true -f net8.0 -o bin/publish/linux-arm
 	echo "%VERSION%">>bin/publish/linux-arm/%%p.version
-	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -f net7.0 -o bin/publish/linux-x64
+	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -f net8.0 -o bin/publish/linux-x64
 	echo "%VERSION%">>bin/publish/linux-x64/%%p.version
-	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -f net7.0 -o bin/publish/win-x64
+	dotnet publish /p:SolutionDir=../;ProductVersion=%VERSION% ./src/%%p/%%p.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -f net8.0 -o bin/publish/win-x64
 	echo "%VERSION%">>bin/publish/win-x64/%%p.version
 )) 
 
