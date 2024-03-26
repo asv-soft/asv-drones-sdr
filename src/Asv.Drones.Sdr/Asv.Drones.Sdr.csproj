@@ -8,7 +8,9 @@
         <Configurations>Debug;Release;</Configurations>
         <Platforms>AnyCPU</Platforms>
         <AssemblyVersion>$(ProductVersion)</AssemblyVersion>
+        <FileVersion>$(ProductVersion)</FileVersion>
         <ApplicationVersion>$(ProductVersion)</ApplicationVersion>
+        <Version>$(ProductVersion)</Version>
     </PropertyGroup>
 
 
